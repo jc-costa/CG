@@ -38,4 +38,3 @@ The detailed project specification is available in this repository as a PDF file
 
 * Jefferson Costa
 * Karla Falcão
-Would you like me to make it sound a bit more **professional (for GitHub)** — e.g., adding sections like *How to Run*, *Dependencies*, and *Repository Structure* — or keep it in this concise academic format?
