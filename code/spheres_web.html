@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CG - WebGL</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            border: 2px solid #333;
+            max-width: 100%;
+            max-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            max-width: 300px;
+        }
+        h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #4a9eff;
+            padding-bottom: 10px;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #aaa;
+            margin: 5px 0;
+        }
+        .material-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #444;
+        }
+        .material-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+        .color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 1px solid #666;
+        }
+        #fps {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #4a9eff;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>Spheres</h2>
+        <p class="info-text">🖱️ <strong>Move o mouse</strong> para rotacionar a cena</p>
+        
+        <div class="material-info">
+            <strong>Esferas:</strong>
+            <div class="material-item">
+                <div class="color-dot" style="background: #f44;"></div>
+                Esfera central (vermelha)
+            </div>
+            <div class="material-item">
+                <div class="color-dot" style="background: #4f4;"></div>
+                Esfera esquerda (verde)
+            </div>
+            <div class="material-item">
+                <div class="color-dot" style="background: #44f;"></div>
+                Esfera direita (azul)
+            </div>
+            <div class="material-item">
+                <div class="color-dot" style="background: #ff4;"></div>
+                Esfera superior (amarela)
+            </div>
+            <div class="material-item">
+                <div class="color-dot" style="background: #f4f;"></div>
+                Esfera inferior (magenta)
+            </div>
+            <div class="material-item">
+                <div class="color-dot" style="background: #4ff;"></div>
+                Esfera pequena (ciano)
+            </div>
+            <div class="material-item">
+                <div class="color-dot" style="background: #f93;"></div>
+                Esfera pequena (laranja)
+            </div>
+        </div>
+    </div>
+    <div id="fps">FPS: 60</div>
+    <canvas id="glCanvas"></canvas>
+
+    <script>
+        let gl, canvas, shaderProgram;
+        let lastTime = 0;
+
+        const vsSource = `
+            attribute vec4 aVertexPosition;
+            void main() {
+                gl_Position = aVertexPosition;
+            }
+        `;
+
+        const fsSource = `
+            precision mediump float;
+            uniform vec2 uResolution;
+            uniform float uTime;
+            uniform vec2 uMouse;
+
+            struct Sphere {
+                vec3 center;
+                float radius;
+                vec3 color;
+            };
+
+            float intersectSphere(vec3 rayOrigin, vec3 rayDir, Sphere sphere) {
+                vec3 oc = rayOrigin - sphere.center;
+                float a = dot(rayDir, rayDir);
+                float b = 2.0 * dot(oc, rayDir);
+                float c = dot(oc, oc) - sphere.radius * sphere.radius;
+                float discriminant = b * b - 4.0 * a * c;
+                
+                if (discriminant < 0.0) {
+                    return -1.0;
+                }
+                
+                return (-b - sqrt(discriminant)) / (2.0 * a);
+            }
+
+            vec3 getSphereNormal(vec3 point, Sphere sphere) {
+                return normalize(point - sphere.center);
+            }
+
+            mat3 rotateY(float angle) {
+                float s = sin(angle);
+                float c = cos(angle);
+                return mat3(
+                    c, 0.0, s,
+                    0.0, 1.0, 0.0,
+                    -s, 0.0, c
+                );
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy - uResolution * 0.5) / uResolution.y;
+
+                float rotationY = (uMouse.x - 0.5) * 6.28318;
+                mat3 rotation = rotateY(rotationY);
+
+                vec3 rayOrigin = rotation * vec3(0.0, 0.0, 3.0);
+                vec3 rayDir = normalize(rotation * vec3(uv, -1.0));
+
+                // Esfera central - vermelha
+                Sphere sphere0 = Sphere(vec3(0.0, 0.0, 0.0), 0.5, vec3(1.0, 0.2, 0.2));
+                // Esfera esquerda - verde
+                Sphere sphere1 = Sphere(vec3(-1.2, 0.0, -0.5), 0.4, vec3(0.2, 1.0, 0.2));
+                // Esfera direita - azul
+                Sphere sphere2 = Sphere(vec3(1.2, 0.0, -0.5), 0.4, vec3(0.2, 0.2, 1.0));
+                // Esfera superior - amarela
+                Sphere sphere3 = Sphere(vec3(0.0, 0.8, -0.3), 0.3, vec3(1.0, 1.0, 0.2));
+                // Esfera inferior - magenta
+                Sphere sphere4 = Sphere(vec3(0.0, -0.8, -0.3), 0.3, vec3(1.0, 0.2, 1.0));
+                // Esfera pequena - ciano
+                Sphere sphere5 = Sphere(vec3(0.6, 0.6, 0.5), 0.25, vec3(0.2, 1.0, 1.0));
+                // Esfera pequena - laranja
+                Sphere sphere6 = Sphere(vec3(-0.6, -0.6, 0.5), 0.25, vec3(1.0, 0.6, 0.2));
+
+                vec3 backgroundColor = mix(vec3(0.1, 0.1, 0.2), vec3(0.5, 0.7, 1.0), uv.y * 0.5 + 0.5);
+                vec3 lightDir = normalize(vec3(0.5, 1.0, 0.5));
+                
+                vec3 color = backgroundColor;
+                float closestT = 1e10;
+                int hitSphere = -1;
+                
+                // Verificar todas as esferas
+                float t = intersectSphere(rayOrigin, rayDir, sphere0);
+                if (t > 0.0 && t < closestT) { closestT = t; hitSphere = 0; }
+                
+                t = intersectSphere(rayOrigin, rayDir, sphere1);
+                if (t > 0.0 && t < closestT) { closestT = t; hitSphere = 1; }
+                
+                t = intersectSphere(rayOrigin, rayDir, sphere2);
+                if (t > 0.0 && t < closestT) { closestT = t; hitSphere = 2; }
+                
+                t = intersectSphere(rayOrigin, rayDir, sphere3);
+                if (t > 0.0 && t < closestT) { closestT = t; hitSphere = 3; }
+                
+                t = intersectSphere(rayOrigin, rayDir, sphere4);
+                if (t > 0.0 && t < closestT) { closestT = t; hitSphere = 4; }
+                
+                t = intersectSphere(rayOrigin, rayDir, sphere5);
+                if (t > 0.0 && t < closestT) { closestT = t; hitSphere = 5; }
+                
+                t = intersectSphere(rayOrigin, rayDir, sphere6);
+                if (t > 0.0 && t < closestT) { closestT = t; hitSphere = 6; }
+                
+                if (hitSphere >= 0) {
+                    vec3 hitPoint = rayOrigin + rayDir * closestT;
+                    Sphere hitSph;
+                    
+                    if (hitSphere == 0) hitSph = sphere0;
+                    else if (hitSphere == 1) hitSph = sphere1;
+                    else if (hitSphere == 2) hitSph = sphere2;
+                    else if (hitSphere == 3) hitSph = sphere3;
+                    else if (hitSphere == 4) hitSph = sphere4;
+                    else if (hitSphere == 5) hitSph = sphere5;
+                    else hitSph = sphere6;
+                    
+                    vec3 normal = getSphereNormal(hitPoint, hitSph);
+                    
+                    float diffuse = max(dot(normal, lightDir), 0.0);
+                    float ambient = 0.3;
+                    
+                    vec3 viewDir = normalize(rayOrigin - hitPoint);
+                    vec3 reflectDir = reflect(-lightDir, normal);
+                    float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0) * 0.5;
+                    
+                    color = hitSph.color * (ambient + diffuse) + vec3(specular);
+                    color += backgroundColor * 0.1 * (1.0 - diffuse);
+                }
+                
+                color = pow(color, vec3(1.0/2.2));
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Erro ao compilar shader:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        function initShaders() {
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+            if (!vertexShader || !fragmentShader) {
+                return;
+            }
+
+            shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                console.error('Erro linkando programa:', gl.getProgramInfoLog(shaderProgram));
+                return;
+            }
+
+            const vertices = new Float32Array([
+                -1, -1,
+                 1, -1,
+                -1,  1,
+                 1,  1,
+            ]);
+
+            const vertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            const positionLocation = gl.getAttribLocation(shaderProgram, 'aVertexPosition');
+            gl.enableVertexAttribArray(positionLocation);
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+            console.log('Shader inicializado com sucesso');
+        }
+
+        function init() {
+            canvas = document.getElementById('glCanvas');
+            gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+            if (!gl) {
+                alert('WebGL não está disponível no seu navegador!');
+                return;
+            }
+
+            console.log('WebGL inicializado');
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            let mouseX = 0.5;
+            canvas.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX / canvas.width;
+            });
+
+            initShaders();
+
+            function render(time) {
+                const deltaTime = time - lastTime;
+                lastTime = time;
+                const fps = Math.round(1000 / deltaTime);
+                document.getElementById('fps').textContent = `FPS: ${fps}`;
+
+                if (!shaderProgram) return;
+
+                gl.useProgram(shaderProgram);
+                
+                const resolutionLocation = gl.getUniformLocation(shaderProgram, 'uResolution');
+                const timeLocation = gl.getUniformLocation(shaderProgram, 'uTime');
+                const mouseLocation = gl.getUniformLocation(shaderProgram, 'uMouse');
+                
+                gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+                gl.uniform1f(timeLocation, time * 0.001);
+                gl.uniform2f(mouseLocation, mouseX, 0.5);
+                
+                gl.clearColor(0.1, 0.1, 0.1, 1);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                
+                requestAnimationFrame(render);
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (gl) {
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
