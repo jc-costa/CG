@@ -21,3 +21,7 @@ target_link_libraries(App glad)
 target_link_libraries(App glm)
 
 target_include_directories(App PRIVATE vendor/stb)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/
+    DESTINATION 
+        ${CMAKE_CURRENT_BINARY_DIR}/Shaders/
+)
