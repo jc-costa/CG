@@ -41,7 +41,7 @@ if(NOT glad_POPULATED)
     FetchContent_MakeAvailable(glad)
 
     add_subdirectory("${glad_SOURCE_DIR}/cmake" glad_cmake)
-    glad_add_library(glad REPRODUCIBLE EXCLUDE_FROM_ALL LOADER API gl:core=4.6)
+    glad_add_library(glad REPRODUCIBLE EXCLUDE_FROM_ALL LOADER API gl:core=4.1)
 endif()
 set_target_properties(glad PROPERTIES FOLDER "Dependencies")
 
