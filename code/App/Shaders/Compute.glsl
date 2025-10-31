@@ -1,4 +1,4 @@
-#version 460 core
+#version 410 core
 
 layout(rgba32f, binding = 0) uniform writeonly image2D outputImage;
 
