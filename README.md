@@ -7,8 +7,7 @@ mkdir build
 cd build
 cmake ..
 ```
-
-Tested on Windows 11 using Visual Studio 2022, more testing to follow.
+Tested on Windows 11 using Visual Studio 2022, and also on two Linux distributions, Kali and Pop!_OS. More testing to follow.
 
 ## Third-Party Dependencies
 Uses the following third-party dependencies:
