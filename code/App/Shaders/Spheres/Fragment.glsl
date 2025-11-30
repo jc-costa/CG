@@ -32,19 +32,6 @@ vec3 getSphereNormal(vec3 point, Sphere sphere) {
 
 void main()
 {
-    // Calculate UV coordinates from texture coordinates
-    // vTexCoord is 0-1, we need to map to screen space
-    vec2 uv = (vTexCoord - 0.5) * 2.0;
-    uv.y = -uv.y; // Flip Y
-    
-    // Adjust aspect ratio
-    float aspect = 1280.0 / 720.0; // You can make this uniform later
-    uv.x *= aspect;
-
-    // Configuração da câmera
-    vec3 rayOrigin = vec3(0.0, 0.0, 3.0);
-    vec3 rayDir = normalize(vec3(uv, -1.0));
-
     // Definir várias esferas com cores diferentes
     const int numSpheres = 7;
     Sphere spheres[numSpheres];
@@ -84,6 +71,19 @@ void main()
     spheres[6].radius = 0.25;
     spheres[6].color = vec3(1.0, 0.6, 0.2);
 
+    // Calculate UV coordinates from texture coordinates
+    // vTexCoord is 0-1, we need to map to screen space
+    vec2 uv = (vTexCoord - 0.5) * 2.0;
+    uv.y = -uv.y; // Flip Y
+    
+    // Adjust aspect ratio
+    float aspect = 1280.0 / 720.0; // You can make this uniform later
+    uv.x *= aspect;
+
+    // Configuração da câmera
+    vec3 rayOrigin = vec3(0.0, 0.0, 3.0);
+    vec3 rayDir = normalize(vec3(uv, -1.0));
+
     // Cor de fundo (gradiente)
     vec3 backgroundColor = mix(vec3(0.1, 0.1, 0.2), vec3(0.5, 0.7, 1.0), uv.y * 0.5 + 0.5);
     
@@ -118,7 +118,10 @@ void main()
         // Iluminação especular
         vec3 viewDir = normalize(rayOrigin - hitPoint);
         vec3 reflectDir = reflect(-lightDir, normal);
-        float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0) * 0.5;
+        float dotVR = dot(viewDir, reflectDir);
+        float ks = 0.1; // Coeficiente especular
+        float q = 20.0; // Brilho especular
+        float specular = pow(max(dotVR, 0.0), q) * ks;
         
         // Cor final com iluminação
         color = spheres[hitSphere].color * (ambient + diffuse) + vec3(specular);
