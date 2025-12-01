@@ -101,15 +101,17 @@ vec3 randomInUnitSphere()
 }
 
 // Cosine-weighted hemisphere sampling (optimal for Lambertian BRDF)
+// Diffuse direction formula: ωd = (θ, φ) = (cos⁻¹(√ξ₁), 2πξ₂)
+// where ξ₁, ξ₂ are random numbers in [0,1]
 // PDF = cos(theta) / PI
 vec3 randomCosineDirection()
 {
-    float r1 = randomFloat();
-    float r2 = randomFloat();
-    float z = sqrt(1.0 - r2);
+    float r1 = randomFloat();  // ξ₂
+    float r2 = randomFloat();  // ξ₁
+    float z = sqrt(1.0 - r2);  // cos(θ) = √(1-ξ₁) ≡ cos(cos⁻¹(√ξ₁))
     
-    float phi = TWO_PI * r1;
-    float sqrtR2 = sqrt(r2);
+    float phi = TWO_PI * r1;   // φ = 2πξ₂
+    float sqrtR2 = sqrt(r2);   // sin(θ)
     float x = cos(phi) * sqrtR2;
     float y = sin(phi) * sqrtR2;
     
@@ -293,15 +295,27 @@ vec3 evaluateBRDF(vec3 V, vec3 L, vec3 N, Material mat)
 }
 
 // Sample BRDF direction (importance sampling)
+// -------------------------------------------------------------------------
+// Ray type selection (MC Path Tracing):
+//   ktot = kd + ks + kt
+//   R = random(0, ktot)
+//   if (R < kd):         → fire DIFFUSE ray
+//   else if (R < kd+ks): → fire SPECULAR ray
+//   else:                → fire TRANSMITTED ray (handled separately)
+//
+// Here: diffuseWeight ≈ kd/(kd+ks), with kd = (1-metallic)*0.5
+// -------------------------------------------------------------------------
 vec3 sampleBRDF(vec3 V, vec3 N, Material mat, out vec3 throughput)
 {
+    // kd probability (diffuse weight)
     float diffuseWeight = (1.0 - mat.metallic) * 0.5;
     
     vec3 L;
     
+    // R = random(0, ktot); if (R < kd) → DIFFUSE ray
     if (randomFloat() < diffuseWeight)
     {
-        // Sample diffuse (cosine-weighted)
+        // DIFFUSE ray: ωd = (cos⁻¹(√ξ₁), 2πξ₂)
         L = randomCosineDirectionInHemisphere(N);
         
         // Evaluate full BRDF for throughput
@@ -315,7 +329,7 @@ vec3 sampleBRDF(vec3 V, vec3 N, Material mat, out vec3 throughput)
     }
     else
     {
-        // Sample specular (GGX)
+        // SPECULAR ray: reflect direction sampled from GGX distribution
         vec3 H = sampleGGX(N, mat.roughness);
         L = reflect(-V, H);
         
@@ -687,13 +701,34 @@ vec3 sampleEnvironment(vec3 rd)
 // ----------------------------------------------------------------------------
 // PATH TRACING KERNEL
 // ----------------------------------------------------------------------------
+// MC Path Tracing Algorithm [Kajiya, SIGGRAPH 86]:
+//
+//   function pathTrace(ray):
+//       hit = scene.intersect(ray)
+//       if no hit: return background
+//
+//       // Direct lighting (emissive surfaces)
+//       I += emission
+//
+//       // One additional ray (randomly chosen):
+//       R = random(0, ktot)
+//       if R < kd:        newRay = diffuseRay(hit)
+//       else if R < kd+ks: newRay = specularRay(hit)
+//       else:              newRay = transmittedRay(hit)
+//
+//       I += pathTrace(newRay) * throughput
+//       return I
+//   end function
+//
+// Produces a ray PATH - not a ray tree (single ray per bounce)
+// ----------------------------------------------------------------------------
 vec3 pathTrace(vec3 rayOrigin, vec3 rayDirection)
 {
-    vec3 radiance = vec3(0.0);
-    vec3 throughput = vec3(1.0);
+    vec3 radiance = vec3(0.0);   // Accumulated color (I)
+    vec3 throughput = vec3(1.0); // Path throughput (product of BRDFs)
     
-    vec3 ro = rayOrigin;
-    vec3 rd = rayDirection;
+    vec3 ro = rayOrigin;   // P = ray origin
+    vec3 rd = rayDirection; // d = ray direction
     
     int maxBounces = uBounces > 0 ? uBounces : 8;
     
@@ -701,52 +736,46 @@ vec3 pathTrace(vec3 rayOrigin, vec3 rayDirection)
     {
         if (bounce >= maxBounces) break;
         
+        // hit = scene.intersect(ray)
         HitRecord hit;
         hit.t = MAX_DISTANCE;
         
         if (!intersectScene(ro, rd, hit))
         {
-            // Hit environment
+            // if no hit: return background
             radiance += throughput * sampleEnvironment(rd);
             break;
         }
         
         Material mat = materials[hit.materialIndex];
         
-        // Add emission
+        // Direct lighting: I += emission (emissive surfaces act as lights)
         radiance += throughput * mat.emission * mat.emissionStrength;
         
         // Russian roulette (after a few bounces)
+        // MC Path Tracing produces NOISE - it decreases with number of samples.
+        // Russian roulette provides unbiased early termination for low-contribution paths.
         if (bounce > 3)
         {
             float p = max(max(throughput.r, throughput.g), throughput.b);
             if (randomFloat() > p) break;
-            throughput /= p;
+            throughput /= p;  // Compensate survivors to remain unbiased
         }
         
         // Sample next direction
+        // -----------------------------------------------------------------
+        // MC Path Tracing: Choose ONE ray type randomly based on material
+        // 
+        //   ktot = kd + ks + kt
+        //   R = random(0, ktot)
+        //   if (R < kd):        → DIFFUSE ray
+        //   else if (R < kd+ks): → SPECULAR ray
+        //   else:                → TRANSMITTED ray
+        // -----------------------------------------------------------------
         vec3 V = -rd;
         vec3 N = hit.normal;
-        //    function traceRay(scene, P, d):
-        //      (t, N, mtrl) = scene intersect (P, d)
-        //      Q = ray (P, d) evaluated at t
-        //      I = shade(mtrl, scene, Q, N, d)
-        //      R = reflectDirection(N, -d)
-        //      I < I + mtrl.k, * traceRay(scene, Q, R)
-        //      if ray is entering object then
-        //          ni = index_of_air
-        //          nt = mtrl.index
-        //      else
-        //          n_i = mtrl.index
-        //          n_t= index of air
-        //          if (mtrl.k_t > 0 and notTIR (n_i, n_t, N, -d)) then
-        //          T = refractDirection (n_i, n_t, N, -d)
-        //          1<1+ mtrl.k, * traceRay(scene, Q, T)
-        //      end if
-        //      return I
-        //    end function
         
-        // Handle transmission (glass)
+        // Handle transmission (kt > 0): TRANSMITTED ray
         if (mat.transmission > 0.0)
         {
             float eta = hit.frontFace ? (1.0 / mat.ior) : mat.ior;
@@ -773,7 +802,9 @@ vec3 pathTrace(vec3 rayOrigin, vec3 rayDirection)
         }
         else
         {
-            // Sample BRDF
+            // Sample BRDF: DIFFUSE (kd) or SPECULAR (ks) ray
+            // Diffuse direction: ωd = (θ, φ) = (cos⁻¹(√ξ₁), 2πξ₂)
+            // Specular direction: reflect(-V, H) where H ~ GGX distribution
             vec3 brdfThroughput;
             rd = sampleBRDF(V, N, mat, brdfThroughput);
             throughput *= brdfThroughput;
@@ -804,18 +835,26 @@ void main()
     rngState = uint(pixelCoord.x + pixelCoord.y * int(uResolution.x)) * uint(uFrame * 719393 + 1);
     rngState = pcgHash(rngState);
     
-    // Anti-aliasing jitter
+    // -------------------------------------------------------------------------
+    // MC Path Tracing - Main Loop (per pixel):
+    //   for each pixel (i,j) in image:
+    //       S = PointInPixel
+    //       P = CameraOrigin  
+    //       d = (S - P) / ||S - P||
+    //       I(i,j) = pathTrace(scene, P, d)
+    //   end for
+    // -------------------------------------------------------------------------
+    
+    // Anti-aliasing jitter (sub-pixel sampling)
     vec2 jitter = randomVec2() - 0.5;
     vec2 uv = (gl_FragCoord.xy + jitter) / uResolution;
-    // S = PointInPixel
-    vec2 ndc = uv * 2.0 - 1.0;
+    vec2 ndc = uv * 2.0 - 1.0;  // S = PointInPixel (in NDC)
 
-    // Calculate ray direction
-
+    // Calculate ray direction: d = (S - P) / ||S - P||
     vec4 target = uInverseProjection * vec4(ndc, 1.0, 1.0);
-    // rayDir: d = (S-P) / |S-P|
     vec3 rayDir = normalize(vec3(uInverseView * vec4(normalize(target.xyz / target.w), 0.0)));
-    // rayOrigin: P = CameraOrigin
+    
+    // Ray origin: P = CameraOrigin
     vec3 rayOrigin = uCameraPosition;
     
     // Depth of field (optional - controlled by aperture uniform)
@@ -825,19 +864,11 @@ void main()
         vec2 diskSample = randomInUnitDisk() * uAperture;
         vec3 right = vec3(uInverseView[0]);
         vec3 up = vec3(uInverseView[1]);
-        // rayOrigin: P = CameraOrigin
-        rayOrigin = rayOrigin + right * diskSample.x + up * diskSample.y;
-        // rayDir: d = (S-P) / |S-P|
-        rayDir = normalize(focalPoint - rayOrigin);
+        rayOrigin = rayOrigin + right * diskSample.x + up * diskSample.y;  // P adjusted
+        rayDir = normalize(focalPoint - rayOrigin);  // d = (S - P) / ||S - P||
     }
     
-    // Path trace
-    //    for each pixel (i,j) in image
-    //      S = PointInPixel
-    //      P = CameraOrigin
-    //      d = (S-P) / |S-P|
-    //      I(1,j) = traceRay(scene, P, d)
-    //    end for
+    // I(i,j) = pathTrace(scene, P, d)
     vec3 color = pathTrace(rayOrigin, rayDir);
     
     // Clamp fireflies
