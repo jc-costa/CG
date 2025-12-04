@@ -62,6 +62,37 @@ if (NOT glm_FOUND)
 endif()
 set_target_properties(glm PROPERTIES FOLDER "Dependencies")
 
+# ImGui
+FetchContent_Declare(
+    imgui
+    DOWNLOAD_EXTRACT_TIMESTAMP OFF
+    URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.5.zip
+)
+FetchContent_GetProperties(imgui)
+if(NOT imgui_POPULATED)
+    set(FETCHCONTENT_QUIET NO)
+    FetchContent_Populate(imgui)
+    
+    # Create ImGui library
+    add_library(imgui STATIC
+        ${imgui_SOURCE_DIR}/imgui.cpp
+        ${imgui_SOURCE_DIR}/imgui_demo.cpp
+        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+        ${imgui_SOURCE_DIR}/imgui_tables.cpp
+        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    )
+    
+    target_include_directories(imgui PUBLIC 
+        ${imgui_SOURCE_DIR}
+        ${imgui_SOURCE_DIR}/backends
+    )
+    
+    target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
+endif()
+set_target_properties(imgui PROPERTIES FOLDER "Dependencies")
+
 #
 # Projects
 #
