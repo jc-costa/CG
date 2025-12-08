@@ -40,6 +40,18 @@ uniform vec3 uQuadrics_bboxMin[8];
 uniform vec3 uQuadrics_bboxMax[8];
 uniform int uQuadrics_materialIndex[8];
 
+// Scene selection
+uniform int uSceneIndex;          // Scene selection index
+
+// OBJ mesh data textures
+uniform sampler2D uTrianglesTex;   // Triangle vertices (width=3, height=numTris)
+uniform sampler2D uNormalsTex;     // Triangle normals
+uniform sampler2D uTriMatTex;      // Triangle material indices
+uniform sampler2D uMaterialsTex;   // Material properties
+uniform int uNumTriangles;         // Number of triangles in mesh
+uniform bool uUseOBJScene;         // Whether to use OBJ scene instead of procedural
+
+
 // ----------------------------------------------------------------------------
 // CONSTANTS
 // ----------------------------------------------------------------------------
@@ -442,6 +454,7 @@ bool intersectPlane(vec3 ro, vec3 rd, Plane plane, inout HitRecord hit)
     return true;
 }
 
+
 // Ray-bounding box intersection (AABB)
 bool intersectAABB(vec3 ro, vec3 rd, vec3 bboxMin, vec3 bboxMax)
 {
@@ -544,8 +557,105 @@ bool intersectQuadric(vec3 ro, vec3 rd, Quadric q, inout HitRecord hit)
     hit.frontFace = dot(rd, normal) < 0.0;
     hit.normal = hit.frontFace ? normal : -normal;
     hit.materialIndex = q.materialIndex;
+
+    return true;
+}
+
+// Ray-triangle intersection (Möller–Trumbore algorithm)
+bool intersectTriangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2, 
+                       vec3 n0, vec3 n1, vec3 n2, int matIdx, inout HitRecord hit)
+{
+    vec3 edge1 = v1 - v0;
+    vec3 edge2 = v2 - v0;
+    vec3 h = cross(rd, edge2);
+    float a = dot(edge1, h);
+    
+    // Ray parallel to triangle
+    if (abs(a) < EPSILON) return false;
+    
+    float f = 1.0 / a;
+    vec3 s = ro - v0;
+    float u = f * dot(s, h);
+    
+    if (u < 0.0 || u > 1.0) return false;
+    
+    vec3 q = cross(s, edge1);
+    float v = f * dot(rd, q);
+    
+    if (v < 0.0 || u + v > 1.0) return false;
+    
+    float t = f * dot(edge2, q);
+    
+    if (t < EPSILON || t > hit.t) return false;
+    
+    hit.t = t;
+    hit.position = ro + rd * t;
+    
+    // Interpolate normal using barycentric coordinates
+    float w = 1.0 - u - v;
+    vec3 interpolatedNormal = normalize(w * n0 + u * n1 + v * n2);
+    
+    hit.frontFace = dot(rd, interpolatedNormal) < 0.0;
+    hit.normal = hit.frontFace ? interpolatedNormal : -interpolatedNormal;
+    hit.materialIndex = matIdx;
     
     return true;
+}
+
+// Get material from OBJ texture data
+Material getMaterialFromTexture(int matIdx)
+{
+    float texY = (float(matIdx) + 0.5) / float(textureSize(uMaterialsTex, 0).y);
+    
+    // Row 0: albedo.rgb + roughness
+    vec4 row0 = texture(uMaterialsTex, vec2(0.5 / 3.0, texY));
+    // Row 1: emission.rgb + metallic
+    vec4 row1 = texture(uMaterialsTex, vec2(1.5 / 3.0, texY));
+    // Row 2: emissionStrength + ior + transmission + padding
+    vec4 row2 = texture(uMaterialsTex, vec2(2.5 / 3.0, texY));
+    
+    Material m;
+    m.albedo = row0.rgb;
+    m.roughness = max(row0.a, 0.04);
+    m.emission = row1.rgb;
+    m.metallic = row1.a;
+    m.emissionStrength = row2.r;
+    m.ior = row2.g;
+    m.transmission = row2.b;
+    m.subsurface = 0.0;
+    
+    return m;
+}
+
+// Intersect all triangles from OBJ mesh
+bool intersectOBJMesh(vec3 ro, vec3 rd, inout HitRecord hit)
+{
+    bool hitAnything = false;
+    
+    for (int i = 0; i < uNumTriangles; i++)
+    {
+        float texY = (float(i) + 0.5) / float(uNumTriangles);
+        
+        // Read triangle vertices
+        vec3 v0 = texture(uTrianglesTex, vec2(0.5 / 3.0, texY)).xyz;
+        vec3 v1 = texture(uTrianglesTex, vec2(1.5 / 3.0, texY)).xyz;
+        vec3 v2 = texture(uTrianglesTex, vec2(2.5 / 3.0, texY)).xyz;
+        
+        // Read triangle normals
+        vec3 n0 = texture(uNormalsTex, vec2(0.5 / 3.0, texY)).xyz;
+        vec3 n1 = texture(uNormalsTex, vec2(1.5 / 3.0, texY)).xyz;
+        vec3 n2 = texture(uNormalsTex, vec2(2.5 / 3.0, texY)).xyz;
+        
+        // Read material index
+        int matIdx = int(texture(uTriMatTex, vec2(0.5, texY)).r);
+        
+        if (intersectTriangle(ro, rd, v0, v1, v2, n0, n1, n2, matIdx, hit))
+        {
+            hitAnything = true;
+        }
+    }
+    
+    return hitAnything;
 }
 
 // ----------------------------------------------------------------------------
@@ -559,7 +669,9 @@ Sphere spheres[NUM_SPHERES];
 
 void initScene()
 {
+
     // Materials
+    // Default materials (used by all scenes)
     materials[0] = createMaterial(vec3(0.73, 0.73, 0.73), 0.9, 0.0);   // White diffuse (floor/ceiling)
     materials[1] = createMaterial(vec3(0.65, 0.05, 0.05), 0.9, 0.0);   // Red diffuse (left wall)
     materials[2] = createMaterial(vec3(0.12, 0.45, 0.15), 0.9, 0.0);   // Green diffuse (right wall)
@@ -570,37 +682,150 @@ void initScene()
     materials[7] = createMaterial(vec3(0.1, 0.3, 0.8), 0.05, 0.0);     // Blue glossy
     materials[8] = createMaterial(vec3(0.95, 0.93, 0.88), 0.4, 0.0);   // Rough white
     materials[9] = createMaterial(vec3(0.85, 0.5, 0.2), 0.3, 0.5);     // Bronze
-    
+
     // Spheres - showcase scene
     // Large chrome sphere
     spheres[0].center = vec3(-1.0, -2.0, -1.0);
     spheres[0].radius = 1.0;
     spheres[0].materialIndex = 3;
-    
+
     // Gold sphere
     spheres[1].center = vec3(1.5, -2.2, 0.5);
     spheres[1].radius = 0.8;
     spheres[1].materialIndex = 4;
-    
+
     // Glass sphere
     spheres[2].center = vec3(0.0, -2.3, 1.5);
     spheres[2].radius = 0.7;
     spheres[2].materialIndex = 6;
-    
-    // Blue glossy sphere  
+
+    // Blue glossy sphere
     spheres[3].center = vec3(-2.0, -2.5, 1.5);
     spheres[3].radius = 0.5;
     spheres[3].materialIndex = 7;
-    
+
     // Small emissive sphere (accent light)
     spheres[4].center = vec3(2.0, -1.5, -1.5);
     spheres[4].radius = 0.4;
     spheres[4].materialIndex = 5;
-    
+
     // Bronze sphere
     spheres[5].center = vec3(0.5, -2.6, -1.8);
     spheres[5].radius = 0.4;
     spheres[5].materialIndex = 9;
+
+//     Initialize all spheres to default (hidden far away)
+    for (int i = 0; i < NUM_SPHERES; i++)
+    {
+        spheres[i].center = vec3(0.0, -1000.0, 0.0);
+        spheres[i].radius = 0.001;
+        spheres[i].materialIndex = 0;
+    }
+
+    // Scene 0: Cornell Box Showcase (default)
+    if (uSceneIndex == 0)
+    {
+        // Large chrome sphere
+        spheres[0].center = vec3(-1.0, -2.0, -1.0);
+        spheres[0].radius = 1.0;
+        spheres[0].materialIndex = 3;
+
+        // Gold sphere
+        spheres[1].center = vec3(1.5, -2.2, 0.5);
+        spheres[1].radius = 0.8;
+        spheres[1].materialIndex = 4;
+
+        // Glass sphere
+        spheres[2].center = vec3(0.0, -2.3, 1.5);
+        spheres[2].radius = 0.7;
+        spheres[2].materialIndex = 6;
+
+        // Blue glossy sphere
+        spheres[3].center = vec3(-2.0, -2.5, 1.5);
+        spheres[3].radius = 0.5;
+        spheres[3].materialIndex = 7;
+
+        // Small emissive sphere (accent light)
+        spheres[4].center = vec3(2.0, -1.5, -1.5);
+        spheres[4].radius = 0.4;
+        spheres[4].materialIndex = 5;
+
+        // Bronze sphere
+        spheres[5].center = vec3(0.5, -2.6, -1.8);
+        spheres[5].radius = 0.4;
+        spheres[5].materialIndex = 9;
+    }
+    // Scene 1: Simple spheres (mirrors RayTracing/src/main.cpp)
+    else if (uSceneIndex == 1)
+    {
+        materials[0] = createMaterial(vec3(1.0, 0.0, 1.0), 0.2, 0.0); // Pink diffuse
+        materials[1] = createMaterial(vec3(0.2, 0.3, 1.0), 0.1, 0.0); // Blue diffuse
+        materials[2] = createMaterial(vec3(0.8, 0.5, 0.2), 0.1, 0.0); // Orange emissive
+        materials[2].emission = materials[2].albedo;
+        materials[2].emissionStrength = 2.0;
+
+        // Pink sphere at origin
+        spheres[0].center = vec3(0.0, 0.0, 0.0);
+        spheres[0].radius = 1.0;
+        spheres[0].materialIndex = 0;
+
+        // Orange emissive sphere offset on +X
+        spheres[1].center = vec3(2.5, 0.0, 0.0);
+        spheres[1].radius = 1.0;
+        spheres[1].materialIndex = 2;
+
+        // Ground sphere using blue material
+        spheres[2].center = vec3(0.0, -101.0, 0.0);
+        spheres[2].radius = 100.0;
+        spheres[2].materialIndex = 1;
+    }
+    // Scene 2: Glass & Metal study
+    else if (uSceneIndex == 2)
+    {
+        // Large glass sphere (center)
+        spheres[0].center = vec3(0.0, -1.5, 0.0);
+        spheres[0].radius = 1.5;
+        spheres[0].materialIndex = 6;
+
+        // Chrome sphere (left)
+        spheres[1].center = vec3(-2.5, -2.2, 0.5);
+        spheres[1].radius = 0.8;
+        spheres[1].materialIndex = 3;
+
+        // Gold sphere (right)
+        spheres[2].center = vec3(2.5, -2.2, 0.5);
+        spheres[2].radius = 0.8;
+        spheres[2].materialIndex = 4;
+
+        // Small emissive (behind glass)
+        spheres[3].center = vec3(0.0, -2.5, -2.0);
+        spheres[3].radius = 0.5;
+        spheres[3].materialIndex = 5;
+    }
+    // Scene 3: All metals lineup
+    else if (uSceneIndex == 3)
+    {
+        // Chrome
+        spheres[0].center = vec3(-2.0, -2.0, 0.0);
+        spheres[0].radius = 1.0;
+        spheres[0].materialIndex = 3;
+
+        // Gold
+        spheres[1].center = vec3(0.0, -2.0, 0.0);
+        spheres[1].radius = 1.0;
+        spheres[1].materialIndex = 4;
+
+        // Bronze
+        spheres[2].center = vec3(2.0, -2.0, 0.0);
+        spheres[2].radius = 1.0;
+        spheres[2].materialIndex = 9;
+
+        // Emissive light source
+        spheres[3].center = vec3(0.0, 1.0, 2.0);
+        spheres[3].radius = 0.5;
+        spheres[3].materialIndex = 5;
+    }
+
 }
 
 // Scene intersection
@@ -608,67 +833,77 @@ bool intersectScene(vec3 ro, vec3 rd, inout HitRecord hit)
 {
     bool hitAnything = false;
     
-    // Spheres
-    for (int i = 0; i < NUM_SPHERES; i++)
+    // Use OBJ mesh if enabled
+    if (uUseOBJScene && uNumTriangles > 0)
     {
-        if (intersectSphere(ro, rd, spheres[i], hit))
+        if (intersectOBJMesh(ro, rd, hit))
             hitAnything = true;
     }
-    
-    // Quadrics (from uniforms) - DEBUG VERSION
-    for (int i = 0; i < uNumQuadrics && i < 8; i++)
+    else
     {
-        Quadric q;
-        q.A = uQuadrics_A[i];
-        q.B = uQuadrics_B[i];
-        q.C = uQuadrics_C[i];
-        q.D = uQuadrics_D[i];
-        q.E = uQuadrics_E[i];
-        q.F = uQuadrics_F[i];
-        q.G = uQuadrics_G[i];
-        q.H = uQuadrics_H[i];
-        q.I = uQuadrics_I[i];
-        q.J = uQuadrics_J[i];
-        q.bboxMin = uQuadrics_bboxMin[i];
-        q.bboxMax = uQuadrics_bboxMax[i];
-        q.materialIndex = uQuadrics_materialIndex[i];
-        
-        bool quadricHit = intersectQuadric(ro, rd, q, hit);
-        if (quadricHit)
+        // Quadrics (from uniforms) - DEBUG VERSION
+        for (int i = 0; i < uNumQuadrics && i < 8; i++)
+        {
+            Quadric q;
+            q.A = uQuadrics_A[i];
+            q.B = uQuadrics_B[i];
+            q.C = uQuadrics_C[i];
+            q.D = uQuadrics_D[i];
+            q.E = uQuadrics_E[i];
+            q.F = uQuadrics_F[i];
+            q.G = uQuadrics_G[i];
+            q.H = uQuadrics_H[i];
+            q.I = uQuadrics_I[i];
+            q.J = uQuadrics_J[i];
+            q.bboxMin = uQuadrics_bboxMin[i];
+            q.bboxMax = uQuadrics_bboxMax[i];
+            q.materialIndex = uQuadrics_materialIndex[i];
+
+            bool quadricHit = intersectQuadric(ro, rd, q, hit);
+            if (quadricHit)
             hitAnything = true;
+        }
+
+        // Procedural spheres
+        for (int i = 0; i < NUM_SPHERES; i++)
+        {
+            if (intersectSphere(ro, rd, spheres[i], hit))
+                hitAnything = true;
+        }
+
+        // Cornell box walls
+        Plane floor;
+        floor.point = vec3(0.0, -3.0, 0.0);
+        floor.normal = vec3(0.0, 1.0, 0.0);
+        floor.materialIndex = 0;
+        if (intersectPlane(ro, rd, floor, hit)) hitAnything = true;
+
+        Plane ceiling;
+        ceiling.point = vec3(0.0, 3.0, 0.0);
+        ceiling.normal = vec3(0.0, -1.0, 0.0);
+        ceiling.materialIndex = 0;
+        if (intersectPlane(ro, rd, ceiling, hit)) hitAnything = true;
+
+        Plane backWall;
+        backWall.point = vec3(0.0, 0.0, -4.0);
+        backWall.normal = vec3(0.0, 0.0, 1.0);
+        backWall.materialIndex = 0;
+        if (intersectPlane(ro, rd, backWall, hit)) hitAnything = true;
+
+        Plane leftWall;
+        leftWall.point = vec3(-3.5, 0.0, 0.0);
+        leftWall.normal = vec3(1.0, 0.0, 0.0);
+        leftWall.materialIndex = 1;
+        if (intersectPlane(ro, rd, leftWall, hit)) hitAnything = true;
+
+        Plane rightWall;
+        rightWall.point = vec3(3.5, 0.0, 0.0);
+        rightWall.normal = vec3(-1.0, 0.0, 0.0);
+        rightWall.materialIndex = 2;
+        if (intersectPlane(ro, rd, rightWall, hit)) hitAnything = true;
     }
-    
-    // Cornell box walls
-    Plane floor;
-    floor.point = vec3(0.0, -3.0, 0.0);
-    floor.normal = vec3(0.0, 1.0, 0.0);
-    floor.materialIndex = 0;
-    if (intersectPlane(ro, rd, floor, hit)) hitAnything = true;
-    
-    Plane ceiling;
-    ceiling.point = vec3(0.0, 3.0, 0.0);
-    ceiling.normal = vec3(0.0, -1.0, 0.0);
-    ceiling.materialIndex = 0;
-    if (intersectPlane(ro, rd, ceiling, hit)) hitAnything = true;
-    
-    Plane backWall;
-    backWall.point = vec3(0.0, 0.0, -4.0);
-    backWall.normal = vec3(0.0, 0.0, 1.0);
-    backWall.materialIndex = 0;
-    if (intersectPlane(ro, rd, backWall, hit)) hitAnything = true;
-    
-    Plane leftWall;
-    leftWall.point = vec3(-3.5, 0.0, 0.0);
-    leftWall.normal = vec3(1.0, 0.0, 0.0);
-    leftWall.materialIndex = 1;
-    if (intersectPlane(ro, rd, leftWall, hit)) hitAnything = true;
-    
-    Plane rightWall;
-    rightWall.point = vec3(3.5, 0.0, 0.0);
-    rightWall.normal = vec3(-1.0, 0.0, 0.0);
-    rightWall.materialIndex = 2;
-    if (intersectPlane(ro, rd, rightWall, hit)) hitAnything = true;
-    
+
+
     return hitAnything;
 }
 
@@ -695,7 +930,7 @@ vec3 sampleEnvironment(vec3 rd)
         skyColor = mix(skyColor, vec3(0.2, 0.15, 0.1), -rd.y);
     }
     
-    return vec3(0.0, 0.0, 0.0); //skyColor * 0.5; + sunColor + sunGlow;
+    return skyColor * 0.5; // + sunColor + sunGlow;
 }
 
 // ----------------------------------------------------------------------------
@@ -747,7 +982,16 @@ vec3 pathTrace(vec3 rayOrigin, vec3 rayDirection)
             break;
         }
         
-        Material mat = materials[hit.materialIndex];
+        // Get material either from OBJ texture or procedural array
+        Material mat;
+        if (uUseOBJScene && uNumTriangles > 0)
+        {
+            mat = getMaterialFromTexture(hit.materialIndex);
+        }
+        else
+        {
+            mat = materials[hit.materialIndex];
+        }
         
         // Direct lighting: I += emission (emissive surfaces act as lights)
         radiance += throughput * mat.emission * mat.emissionStrength;

@@ -8,6 +8,10 @@ set(SOURCES
     Source/Shader.cpp
     Source/Renderer.h
     Source/Renderer.cpp
+    Source/FileManager.h
+    Source/FileManager.cpp
+    Source/SceneManager.h
+    Source/SceneManager.cpp
     Source/Math/Vec3.h
     Source/Math/Vec3.cpp
     Source/Math/Ray.h
@@ -36,4 +40,9 @@ target_include_directories(App PRIVATE Source)
 # Copy all shaders to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Shaders/
+)
+
+# Copy assets (OBJ files, textures, etc.) to build directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets/
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/
 )

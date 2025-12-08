@@ -1,77 +1,127 @@
-# details at:
-# http://www.graphics.cornell.edu/online/box/data.html
+# ============================================================================
+# CORNELL BOX - Standard Test Scene for Global Illumination
+# ============================================================================
 #
-# there are non-standard definitions at the bottom for
-# the camera and light data
+# The Cornell Box is a test scene developed at Cornell University to validate
+# global illumination algorithms. It features:
+#   - Simple geometry (axis-aligned walls and two boxes)
+#   - Colored walls (red and green) for visible color bleeding
+#   - An area light on the ceiling
+#   - Diffuse surfaces for predictable light transport
+#
+# Original Data: http://www.graphics.cornell.edu/online/box/data.html
+#
+# This OBJ file uses custom extensions for camera and light definitions:
+#   c eye_idx target_idx up_idx  - Camera definition using vertex/normal indices
+#   lp vertex_idx                - Point light at vertex position
+#
+# Coordinate System:
+#   - Y is up
+#   - Units are approximately in millimeters (original Cornell Box is ~55cm)
+#   - Scene is normalized to fit in a 6x6x6 unit box during loading
+#
+# ============================================================================
 
+# Reference material library
 mtllib ./cornell_box.mtl
 
-#floor
+# ============================================================================
+# FLOOR (y = 0)
+# ============================================================================
+# Vertices 1-4
 v 552.8 0.0   0.0   
 v 0.0 0.0   0.0
 v 0.0 0.0 559.2
 v 549.6 0.0 559.2
+
 usemtl floor
 f 1 2 3
 f 1 3 4
 
-#ceiling
+# ============================================================================
+# CEILING (y = 548.8)
+# ============================================================================
+# Vertices 5-8
 v 556.0 548.8 0.0   
 v 556.0 548.8 559.2
 v 0.0 548.8 559.2
 v 0.0 548.8   0.0
+
 usemtl ceiling
 f 5 6 7
 f 5 7 8
 
-#back wall
+# ============================================================================
+# BACK WALL (z = 559.2)
+# ============================================================================
+# Vertices 9-12
 v 549.6   0.0 559.2 
 v 0.0   0.0 559.2
 v 0.0 548.8 559.2
 v 556.0 548.8 559.2
+
 usemtl back
 f 9 10 11
 f 9 11 12
 
-#right wall
+# ============================================================================
+# RIGHT WALL - GREEN (x = 0)
+# ============================================================================
+# Vertices 13-16
 v 0.0   0.0 559.2   
 v 0.0   0.0   0.0
 v 0.0 548.8   0.0
 v 0.0 548.8 559.2
+
 usemtl green
 f 13 14 15
 f 13 15 16
 
-#left wall
+# ============================================================================
+# LEFT WALL - RED (x ≈ 550)
+# ============================================================================
+# Vertices 17-20
 v 552.8   0.0   0.0 
 v 549.6   0.0 559.2
 v 556.0 548.8 559.2
 v 556.0 548.8   0.0
+
 usemtl red
 f 17 18 19
 f 17 19 20
 
-# short block
+# ============================================================================
+# SHORT BLOCK (front-right)
+# ============================================================================
+# A smaller cube rotated ~17° about Y axis
+# Top face at y = 165
+# Vertices 21-40 (5 faces, no bottom)
+
+# Top face
 v 130.0 165.0  65.0 
 v 82.0 165.0 225.0
 v 240.0 165.0 272.0
 v 290.0 165.0 114.0
 
+# Right face
 v 290.0   0.0 114.0
 v 290.0 165.0 114.0
 v 240.0 165.0 272.0
 v 240.0   0.0 272.0
 
+# Front face
 v 130.0   0.0  65.0
 v 130.0 165.0  65.0
 v 290.0 165.0 114.0
 v 290.0   0.0 114.0
 
+# Left face
 v 82.0   0.0 225.0
 v 82.0 165.0 225.0
 v 130.0 165.0  65.0
 v 130.0   0.0  65.0
 
+# Back face
 v 240.0   0.0 272.0
 v 240.0 165.0 272.0
 v 82.0 165.0 225.0
@@ -89,27 +139,38 @@ f 33 35 36
 f 37 38 39
 f 37 39 40
 
-#tall block
+# ============================================================================
+# TALL BLOCK (back-left)
+# ============================================================================
+# A taller cube rotated ~-17° about Y axis
+# Top face at y = 330
+# Vertices 41-60 (5 faces, no bottom)
+
+# Top face
 v 423.0 330.0 247.0
 v 265.0 330.0 296.0
 v 314.0 330.0 456.0
 v 472.0 330.0 406.0
 
+# Right face
 v 423.0   0.0 247.0
 v 423.0 330.0 247.0
 v 472.0 330.0 406.0
 v 472.0   0.0 406.0
 
+# Back face
 v 472.0   0.0 406.0
 v 472.0 330.0 406.0
 v 314.0 330.0 456.0
 v 314.0   0.0 456.0
 
+# Left face
 v 314.0   0.0 456.0
 v 314.0 330.0 456.0
 v 265.0 330.0 296.0
 v 265.0   0.0 296.0
 
+# Front face
 v 265.0   0.0 296.0
 v 265.0 330.0 296.0
 v 423.0 330.0 247.0
@@ -127,17 +188,45 @@ f 53 55 56
 f 57 58 59
 f 57 59 60
 
-# light
+# ============================================================================
+# AREA LIGHT (on ceiling)
+# ============================================================================
+# A small rectangular light source centered on the ceiling
+# Position: center of the ceiling light opening
+# Vertex 61
+
 v 278 548.5 279.5
 
 usemtl light
+# Custom extension: lp <vertex_index>
+# Defines a point light at the referenced vertex position
+# Negative index -1 means "the last vertex" (vertex 61)
 lp -1
 
-#camera
+# ============================================================================
+# CAMERA DEFINITION
+# ============================================================================
+# Camera positioned outside the box, looking in
+# Uses custom extension: c <eye_idx> <target_idx> <up_idx>
+#   eye_idx    - Vertex index for camera position
+#   target_idx - Vertex index for look-at target
+#   up_idx     - Normal index for up vector
+
+# Camera eye position (outside box, looking in)
 v  278 273 -300
+
+# Camera target (center of box)
 v  278 273 0
+
+# Up vector (Y-up)
 vn  0 1 0
 
+# Group name for camera (optional)
 g Camera
-c -2 -1 -1
 
+# Custom extension: c <eye> <target> <up>
+# Negative indices are relative to end of list
+# -2 = second to last vertex (eye)
+# -1 = last vertex (target)
+# -1 = last normal (up)
+c -2 -1 -1

@@ -23,13 +23,14 @@
 
 #include "Shader.h"
 #include "Renderer.h"
+#include "SceneManager.h"
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-static constexpr int INITIAL_WIDTH = 1080;
-static constexpr int INITIAL_HEIGHT = 500;
-static constexpr int MAX_BOUNCES = 32;
+static constexpr int INITIAL_WIDTH = 1920;
+static constexpr int INITIAL_HEIGHT = 1080;
+static constexpr int MAX_BOUNCES = 4;
 static constexpr float CAMERA_SPEED = 3.0f;
 static constexpr float MOUSE_SENSITIVITY = 0.002f;
 
@@ -206,6 +207,10 @@ static bool s_ResetAccumulation = true;
 static int s_Width = INITIAL_WIDTH;
 static int s_Height = INITIAL_HEIGHT;
 static int s_MaxBounces = MAX_BOUNCES;
+static int s_SceneIndex = 0;
+static constexpr int NUM_SCENES = 4;
+static SceneManager s_SceneManager;
+static bool s_UseOBJScene = false;
 
 static std::filesystem::path s_ShaderDir;
 
@@ -519,7 +524,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 			std::cerr << "Shader reload failed!" << std::endl;
 		}
 	}
-	
+
 	// Tonemapper cycling
 	if (key == GLFW_KEY_T && action == GLFW_PRESS)
 	{
@@ -527,7 +532,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		const char* names[] = {"None", "Reinhard", "ACES", "Uncharted2"};
 		std::cout << "Tonemapper: " << names[s_Camera.Tonemapper] << std::endl;
 	}
-	
+
 	// Exposure controls
 	if (key == GLFW_KEY_EQUAL && action == GLFW_PRESS)
 	{
@@ -539,7 +544,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		s_Camera.Exposure /= 1.2f;
 		std::cout << "Exposure: " << s_Camera.Exposure << std::endl;
 	}
-	
+
 	// Bounce count
 	if (key == GLFW_KEY_UP && action == GLFW_PRESS)
 	{
@@ -547,13 +552,14 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		s_ResetAccumulation = true;
 		std::cout << "Max bounces: " << s_MaxBounces << std::endl;
 	}
+
 	if (key == GLFW_KEY_DOWN && action == GLFW_PRESS)
 	{
 		s_MaxBounces = std::max(s_MaxBounces - 1, 1);
 		s_ResetAccumulation = true;
 		std::cout << "Max bounces: " << s_MaxBounces << std::endl;
 	}
-	
+
 	// DOF controls
 	if (key == GLFW_KEY_F && action == GLFW_PRESS)
 	{
@@ -561,7 +567,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		s_ResetAccumulation = true;
 		std::cout << "DOF: " << (s_Camera.Aperture > 0 ? "ON" : "OFF") << std::endl;
 	}
-	
+
 	// Toggle Quadric Editor (ImGui)
 	if (key == GLFW_KEY_G && action == GLFW_PRESS)
 	{
@@ -573,6 +579,67 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 	if (key == GLFW_KEY_H && action == GLFW_PRESS)
 	{
 		s_ShowHelp = !s_ShowHelp;
+    }
+
+	// Scene switching (procedural scenes)
+	if (key == GLFW_KEY_I && action == GLFW_PRESS &&
+		glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) != GLFW_PRESS)
+	{
+		s_UseOBJScene = false;  // Switch back to procedural
+		s_SceneIndex = (s_SceneIndex + 1) % NUM_SCENES;
+		s_ResetAccumulation = true;
+		const char* sceneNames[] = {"Cornell Box Showcase", "Simple Spheres", "Glass & Metal Study", "Metals Lineup"};
+		std::cout << "Scene: " << sceneNames[s_SceneIndex] << " (" << s_SceneIndex << "/" << (NUM_SCENES - 1) << ")" << std::endl;
+	}
+	
+	// Load OBJ scene (cornell_box.obj)
+	if (key == GLFW_KEY_O && action == GLFW_PRESS)
+	{
+		std::filesystem::path objPath = GetShaderPath("assets/cornell_box.obj");
+		std::cout << "Loading OBJ: " << objPath.string() << std::endl;
+		
+		s_SceneManager.Clear();
+		if (s_SceneManager.LoadOBJ(objPath))
+		{
+			if (s_SceneManager.UploadToGPU())
+			{
+				s_UseOBJScene = true;
+				s_ResetAccumulation = true;
+				
+				// Use camera from OBJ if available
+				const SceneData& scene = s_SceneManager.GetSceneData();
+				if (scene.HasCamera)
+				{
+					s_Camera.Position = scene.CameraPosition;
+					glm::vec3 dir = glm::normalize(scene.CameraTarget - scene.CameraPosition);
+					s_Camera.Forward = dir;
+					s_Camera.Up = scene.CameraUp;
+					s_Camera.RecalculateView();
+				}
+				
+				std::cout << "OBJ scene loaded: " << s_SceneManager.GetTriangleCount() 
+						  << " triangles" << std::endl;
+			}
+		}
+		else
+		{
+			std::cerr << "Failed to load OBJ file" << std::endl;
+		}
+	}
+	
+	// Toggle between OBJ and procedural scene
+	if (key == GLFW_KEY_P && action == GLFW_PRESS)
+	{
+		if (s_SceneManager.GetTriangleCount() > 0)
+		{
+			s_UseOBJScene = !s_UseOBJScene;
+			s_ResetAccumulation = true;
+			std::cout << "Scene mode: " << (s_UseOBJScene ? "OBJ Mesh" : "Procedural") << std::endl;
+		}
+		else
+		{
+			std::cout << "No OBJ loaded. Press 'O' to load cornell_box.obj" << std::endl;
+		}
 	}
 }
 
@@ -675,6 +742,18 @@ static void RenderPathTrace()
 	glUniform1f(glGetUniformLocation(s_PathTraceShader, "uTime"), (float)glfwGetTime());
 	glUniform1f(glGetUniformLocation(s_PathTraceShader, "uAperture"), s_Camera.Aperture);
 	glUniform1f(glGetUniformLocation(s_PathTraceShader, "uFocusDistance"), s_Camera.FocusDistance);
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uSceneIndex"), s_SceneIndex);
+	
+	// OBJ scene uniforms
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uUseOBJScene"), s_UseOBJScene ? 1 : 0);
+	if (s_UseOBJScene && s_SceneManager.GetTriangleCount() > 0)
+	{
+		s_SceneManager.BindTextures(s_PathTraceShader);
+	}
+	else
+	{
+		glUniform1i(glGetUniformLocation(s_PathTraceShader, "uNumTriangles"), 0);
+	}
 	
 	// Pass quadrics to shader
 	GLint uNumQuadricsLoc = glGetUniformLocation(s_PathTraceShader, "uNumQuadrics");
@@ -826,7 +905,12 @@ int main()
 		glfwTerminate();
 		return EXIT_FAILURE;
 	}
-	
+
+	std::cout << "\n=== SCENE CONTROLS ===" << std::endl;
+	std::cout << "I: Cycle procedural scenes" << std::endl;
+    std::cout << "O: Load OBJ scene (cornell_box.obj)" << std::endl;
+    std::cout << "P: Toggle OBJ/Procedural mode" << std::endl;
+
 	std::cout << "\n=== CONTROLS ===" << std::endl;
 	std::cout << "Right Mouse + WASD: Move camera" << std::endl;
 	std::cout << "Q/E: Move up/down" << std::endl;
