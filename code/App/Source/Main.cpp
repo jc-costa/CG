@@ -27,9 +27,9 @@
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-static constexpr int INITIAL_WIDTH = 1920;
-static constexpr int INITIAL_HEIGHT = 1080;
-static constexpr int MAX_BOUNCES = 8;
+static constexpr int INITIAL_WIDTH = 1080;
+static constexpr int INITIAL_HEIGHT = 500;
+static constexpr int MAX_BOUNCES = 32;
 static constexpr float CAMERA_SPEED = 3.0f;
 static constexpr float MOUSE_SENSITIVITY = 0.002f;
 
