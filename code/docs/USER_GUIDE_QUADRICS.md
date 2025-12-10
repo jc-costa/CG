@@ -1,73 +1,73 @@
-# Guia de Uso - Sistema Interativo de Quádricas
+# User Guide - Interactive Quadric System
 
-## Como Editar Quádricas
+## How to Edit Quadrics
 
-O sistema permite que o usuário entre com os coeficientes das quádricas de forma interativa durante a execução do programa.
+The system allows users to interactively input quadric coefficients during program execution.
 
-### Métodos de Edição
+### Editing Methods
 
-#### 1. Editor Rápido (Alt + Número)
+#### 1. Quick Editor (Alt + Number)
 
-Pressione **Alt + [1-8]** para editar rapidamente uma quádrica específica:
+Press **Alt + [1-8]** to quickly edit a specific quadric:
 
-- **Alt+1**: Edita Quadric 0 (Elipsoide padrão)
-- **Alt+2**: Edita Quadric 1 (Hiperboloide padrão)
-- **Alt+3**: Edita Quadric 2 (Paraboloide padrão)
-- **Alt+4**: Edita Quadric 3 (Cilindro padrão)
-- **Alt+5 a Alt+8**: Edita Quadrics 4-7 (vazias inicialmente)
+- **Alt+1**: Edit Quadric 0 (Default ellipsoid)
+- **Alt+2**: Edit Quadric 1 (Default hyperboloid)
+- **Alt+3**: Edit Quadric 2 (Default paraboloid)
+- **Alt+4**: Edit Quadric 3 (Default cylinder)
+- **Alt+5 to Alt+8**: Edit Quadrics 4-7 (initially empty)
 
-O editor será aberto no terminal onde você pode inserir os coeficientes.
+The editor will open in the terminal where you can enter the coefficients.
 
-#### 2. Menu do Editor (Ctrl+Q)
+#### 2. Editor Menu (Ctrl+Q)
 
-Pressione **Ctrl+Q** para abrir o menu do editor de quádricas com opções:
-- Escolher qual quádrica editar
-- Ver instruções
-- Adicionar nova quádrica
+Press **Ctrl+Q** to open the quadric editor menu with options:
+- Choose which quadric to edit
+- View instructions
+- Add new quadric
 
-#### 3. Listar Quádricas (Ctrl+L)
+#### 3. List Quadrics (Ctrl+L)
 
-Pressione **Ctrl+L** para listar todas as quádricas ativas com seus coeficientes.
+Press **Ctrl+L** to list all active quadrics with their coefficients.
 
-### Processo de Edição
+### Editing Process
 
-Quando você abre o editor para uma quádrica, será solicitado a entrar com:
+When you open the editor for a quadric, you will be prompted to enter:
 
 ```
-Enter A (x² coefficient) [valor_atual]: 
-Enter B (y² coefficient) [valor_atual]: 
-Enter C (z² coefficient) [valor_atual]: 
-Enter D (xy coefficient) [valor_atual]: 
-Enter E (xz coefficient) [valor_atual]: 
-Enter F (yz coefficient) [valor_atual]: 
-Enter G (x coefficient) [valor_atual]: 
-Enter H (y coefficient) [valor_atual]: 
-Enter I (z coefficient) [valor_atual]: 
-Enter J (constant) [valor_atual]: 
+Enter A (x² coefficient) [current_value]: 
+Enter B (y² coefficient) [current_value]: 
+Enter C (z² coefficient) [current_value]: 
+Enter D (xy coefficient) [current_value]: 
+Enter E (xz coefficient) [current_value]: 
+Enter F (yz coefficient) [current_value]: 
+Enter G (x coefficient) [current_value]: 
+Enter H (y coefficient) [current_value]: 
+Enter I (z coefficient) [current_value]: 
+Enter J (constant) [current_value]: 
 
 --- Bounding Box ---
-Enter bbox min X [valor_atual]: 
-Enter bbox min Y [valor_atual]: 
-Enter bbox min Z [valor_atual]: 
-Enter bbox max X [valor_atual]: 
-Enter bbox max Y [valor_atual]: 
-Enter bbox max Z [valor_atual]: 
+Enter bbox min X [current_value]: 
+Enter bbox min Y [current_value]: 
+Enter bbox min Z [current_value]: 
+Enter bbox max X [current_value]: 
+Enter bbox max Y [current_value]: 
+Enter bbox max Z [current_value]: 
 
-Enter material index (0-9) [valor_atual]: 
+Enter material index (0-9) [current_value]: 
 ```
 
-**Dica**: Pressione **Enter** sem digitar nada para manter o valor atual.
+**Tip**: Press **Enter** without typing anything to keep the current value.
 
-## Exemplos Práticos
+## Practical Examples
 
-### Exemplo 1: Criar uma Esfera
+### Example 1: Create a Sphere
 
-Equação: `x² + y² + z² = r²`
+Equation: `x² + y² + z² = r²`
 
-Para uma esfera de raio 1.5:
+For a sphere with radius 1.5:
 
-1. Pressione **Alt+5** (para editar Quadric 4, vazia)
-2. Entre com os valores:
+1. Press **Alt+5** (to edit Quadric 4, empty)
+2. Enter the values:
    ```
    A: 1
    B: 1
@@ -85,12 +85,12 @@ Para uma esfera de raio 1.5:
    material: 6 (glass)
    ```
 
-### Exemplo 2: Criar um Cone
+### Example 2: Create a Cone
 
-Equação: `x² + y² - z² = 0`
+Equation: `x² + y² - z² = 0`
 
-1. Pressione **Alt+6**
-2. Entre com os valores:
+1. Press **Alt+6**
+2. Enter the values:
    ```
    A: 1
    B: 1
@@ -108,12 +108,12 @@ Equação: `x² + y² - z² = 0`
    material: 3 (chrome)
    ```
 
-### Exemplo 3: Criar um Paraboloide Hiperbólico (Sela)
+### Example 3: Create a Hyperbolic Paraboloid (Saddle)
 
-Equação: `z = x² - y²` → Rearranjar: `x² - y² - z = 0`
+Equation: `z = x² - y²` → Rearrange: `x² - y² - z = 0`
 
-1. Pressione **Alt+7**
-2. Entre com os valores:
+1. Press **Alt+7**
+2. Enter the values:
    ```
    A: 1
    B: -1
@@ -131,114 +131,114 @@ Equação: `z = x² - y²` → Rearranjar: `x² - y² - z = 0`
    material: 4 (gold)
    ```
 
-## Materiais Disponíveis
+## Available Materials
 
-Ao escolher o material index, use:
+When choosing the material index, use:
 
-| Índice | Material | Descrição |
-|--------|----------|-----------|
-| 0 | White Diffuse | Branco difuso (paredes) |
-| 1 | Red Diffuse | Vermelho difuso |
-| 2 | Green Diffuse | Verde difuso |
-| 3 | Chrome Metal | Cromo metálico (espelhado) |
-| 4 | Gold Metal | Ouro metálico |
-| 5 | Warm Light | Luz emissiva quente |
-| 6 | Clear Glass | Vidro transparente |
-| 7 | Blue Glossy | Azul brilhante |
-| 8 | Rough White | Branco áspero |
-| 9 | Bronze | Bronze metálico |
+| Index | Material | Description |
+|-------|----------|-------------|
+| 0 | White Diffuse | White diffuse (walls) |
+| 1 | Red Diffuse | Red diffuse |
+| 2 | Green Diffuse | Green diffuse |
+| 3 | Chrome Metal | Chrome metal (mirror-like) |
+| 4 | Gold Metal | Gold metal |
+| 5 | Warm Light | Warm emissive light |
+| 6 | Clear Glass | Transparent glass |
+| 7 | Blue Glossy | Glossy blue |
+| 8 | Rough White | Rough white |
+| 9 | Bronze | Bronze metal |
 
-## Dicas Importantes
+## Important Tips
 
-### 1. Bounding Box é Essencial
-- Sempre defina uma bounding box adequada
-- Para superfícies limitadas (esferas, elipsoides), a bbox deve englobar toda a forma
-- Para superfícies ilimitadas (cilindros, cones, paraboloides), a bbox define os limites visíveis
+### 1. Bounding Box is Essential
+- Always define an appropriate bounding box
+- For bounded surfaces (spheres, ellipsoids), the bbox should encompass the entire shape
+- For unbounded surfaces (cylinders, cones, paraboloids), the bbox defines visible limits
 
-### 2. Verificar a Equação
-Antes de entrar com os coeficientes:
-1. Escreva a equação desejada
-2. Reorganize para o formato: `Ax² + By² + Cz² + Dxy + Exz + Fyz + Gx + Hy + Iz + J = 0`
-3. Identifique cada coeficiente
+### 2. Verify the Equation
+Before entering coefficients:
+1. Write the desired equation
+2. Rearrange to the format: `Ax² + By² + Cz² + Dxy + Exz + Fyz + Gx + Hy + Iz + J = 0`
+3. Identify each coefficient
 
-### 3. Testar Incrementalmente
-- Comece com formas simples (esfera, cilindro)
-- Teste a visualização antes de criar formas complexas
-- Use **Ctrl+L** para verificar os valores após editar
+### 3. Test Incrementally
+- Start with simple shapes (sphere, cylinder)
+- Test visualization before creating complex shapes
+- Use **Ctrl+L** to verify values after editing
 
-### 4. Visualizar as Mudanças
-Após editar uma quádrica:
-- A cena será automaticamente reiniciada
-- Use os controles de câmera (Botão direito + WASD) para ver a nova forma
-- Ajuste a câmera com Q/E (subir/descer)
+### 4. Visualize Changes
+After editing a quadric:
+- The scene will automatically restart
+- Use camera controls (Right mouse + WASD) to view the new shape
+- Adjust camera with Q/E (up/down)
 
 ### 5. Debugging
-Se a quádrica não aparecer:
-- ✓ Verifique se a bounding box está correta
-- ✓ Confirme que a câmera está posicionada para ver a forma
-- ✓ Use **Ctrl+L** para verificar se os coeficientes foram salvos corretamente
-- ✓ Tente aumentar a bounding box temporariamente
+If the quadric doesn't appear:
+- ✓ Check if the bounding box is correct
+- ✓ Confirm the camera is positioned to see the shape
+- ✓ Use **Ctrl+L** to verify coefficients were saved correctly
+- ✓ Try temporarily increasing the bounding box
 
-## Conversão de Equações Comuns
+## Common Equation Conversions
 
-### Esfera
-- Forma padrão: `x² + y² + z² = r²`
-- Coeficientes: A=1, B=1, C=1, J=-r²
+### Sphere
+- Standard form: `x² + y² + z² = r²`
+- Coefficients: A=1, B=1, C=1, J=-r²
 
-### Elipsoide
-- Forma padrão: `x²/a² + y²/b² + z²/c² = 1`
-- Multiplique: `(1/a²)x² + (1/b²)y² + (1/c²)z² - 1 = 0`
-- Coeficientes: A=1/a², B=1/b², C=1/c², J=-1
+### Ellipsoid
+- Standard form: `x²/a² + y²/b² + z²/c² = 1`
+- Multiply: `(1/a²)x² + (1/b²)y² + (1/c²)z² - 1 = 0`
+- Coefficients: A=1/a², B=1/b², C=1/c², J=-1
 
-### Cilindro (eixo Z)
-- Forma padrão: `x² + y² = r²`
-- Coeficientes: A=1, B=1, C=0, J=-r²
+### Cylinder (Z-axis)
+- Standard form: `x² + y² = r²`
+- Coefficients: A=1, B=1, C=0, J=-r²
 
-### Cone (eixo Z)
-- Forma padrão: `x² + y² = z²`
-- Rearranjar: `x² + y² - z² = 0`
-- Coeficientes: A=1, B=1, C=-1, J=0
+### Cone (Z-axis)
+- Standard form: `x² + y² = z²`
+- Rearrange: `x² + y² - z² = 0`
+- Coefficients: A=1, B=1, C=-1, J=0
 
-### Paraboloide
-- Forma padrão: `z = x² + y²`
-- Rearranjar: `x² + y² - z = 0`
-- Coeficientes: A=1, B=1, I=-1
+### Paraboloid
+- Standard form: `z = x² + y²`
+- Rearrange: `x² + y² - z = 0`
+- Coefficients: A=1, B=1, I=-1
 
-### Hiperboloide (1 folha)
-- Forma padrão: `x²/a² + y²/b² - z²/c² = 1`
-- Coeficientes: A=1/a², B=1/b², C=-1/c², J=-1
+### Hyperboloid (1 sheet)
+- Standard form: `x²/a² + y²/b² - z²/c² = 1`
+- Coefficients: A=1/a², B=1/b², C=-1/c², J=-1
 
-### Hiperboloide (2 folhas)
-- Forma padrão: `z²/c² - x²/a² - y²/b² = 1`
-- Coeficientes: A=-1/a², B=-1/b², C=1/c², J=-1
+### Hyperboloid (2 sheets)
+- Standard form: `z²/c² - x²/a² - y²/b² = 1`
+- Coefficients: A=-1/a², B=-1/b², C=1/c², J=-1
 
-## Controles Completos
+## Complete Controls
 
-| Tecla | Ação |
-|-------|------|
-| **Botão direito + WASD** | Mover câmera |
-| **Q / E** | Subir / descer |
-| **Shift** | Mover mais rápido |
-| **R** | Recarregar shaders |
-| **T** | Alternar tonemapper |
-| **+ / -** | Ajustar exposição |
-| **↑ / ↓** | Ajustar max bounces |
+| Key | Action |
+|-----|--------|
+| **Right mouse + WASD** | Move camera |
+| **Q / E** | Move up / down |
+| **Shift** | Move faster |
+| **R** | Reload shaders |
+| **T** | Cycle tonemapper |
+| **+ / -** | Adjust exposure |
+| **↑ / ↓** | Adjust max bounces |
 | **F** | Toggle depth of field |
-| **Ctrl+Q** | Menu editor de quádricas |
-| **Ctrl+L** | Listar todas as quádricas |
-| **Alt+[1-8]** | Editar quádrica N |
-| **ESC** | Sair |
+| **Ctrl+Q** | Quadric editor menu |
+| **Ctrl+L** | List all quadrics |
+| **Alt+[1-8]** | Edit quadric N |
+| **ESC** | Quit |
 
-## Salvando suas Quádricas
+## Saving Your Quadrics
 
-Atualmente, as quádricas são configuradas em tempo de execução e não são salvas em arquivo. Para tornar suas configurações permanentes:
+Currently, quadrics are configured at runtime and are not saved to file. To make your configurations permanent:
 
-1. Após criar a quádrica desejada, use **Ctrl+L** para ver os coeficientes
-2. Copie os valores
-3. (Opcional) Adicione-os ao código em `Main.cpp` na função `InitializeDefaultQuadrics()`
+1. After creating the desired quadric, use **Ctrl+L** to view the coefficients
+2. Copy the values
+3. (Optional) Add them to the code in `Main.cpp` in the `InitializeDefaultQuadrics()` function
 
-## Limitações
+## Limitations
 
-- Máximo de 8 quádricas simultâneas (configurável em `MAX_QUADRICS`)
-- As quádricas são sempre centradas ou posicionadas via termos lineares G, H, I
-- Para transformações mais complexas (rotação), modifique os coeficientes D, E, F
+- Maximum of 8 simultaneous quadrics (configurable in `MAX_QUADRICS`)
+- Quadrics are always centered or positioned via linear terms G, H, I
+- For more complex transformations (rotation), modify coefficients D, E, F

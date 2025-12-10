@@ -1,82 +1,82 @@
-# Implementação de Quádricas
+# Quadric Implementation
 
-## Visão Geral
+## Overview
 
-Este projeto implementa superfícies quádricas no path tracer, permitindo renderizar formas como elipsoides, hiperboloides, paraboloides e cilindros através da equação geral da quádrica.
+This project implements quadric surfaces in the path tracer, enabling rendering of shapes like ellipsoids, hyperboloids, paraboloids, and cylinders through the general quadric equation.
 
-## Equação da Quádrica
+## Quadric Equation
 
-A equação geral de uma superfície quádrica em 3D é:
+The general equation for a 3D quadric surface is:
 
 ```
 Ax² + By² + Cz² + Dxy + Exz + Fyz + Gx + Hy + Iz + J = 0
 ```
 
-Onde:
-- **A, B, C**: Coeficientes dos termos quadráticos (x², y², z²)
-- **D, E, F**: Coeficientes dos termos cruzados (xy, xz, yz)
-- **G, H, I**: Coeficientes dos termos lineares (x, y, z)
-- **J**: Termo constante
+Where:
+- **A, B, C**: Coefficients of quadratic terms (x², y², z²)
+- **D, E, F**: Coefficients of cross terms (xy, xz, yz)
+- **G, H, I**: Coefficients of linear terms (x, y, z)
+- **J**: Constant term
 
-## Características Implementadas
+## Implemented Features
 
-### 1. Interseção Raio-Quádrica
+### 1. Ray-Quadric Intersection
 
-O raio é definido por: **P(t) = O + t·D**
+The ray is defined by: **P(t) = O + t·D**
 
-Onde:
-- **O** = origem do raio (ray origin)
-- **D** = direção do raio (ray direction)
-- **t** = parâmetro do raio
+Where:
+- **O** = ray origin
+- **D** = ray direction
+- **t** = ray parameter
 
-Substituindo na equação da quádrica, obtemos uma equação quadrática:
+Substituting into the quadric equation yields a quadratic equation:
 
 ```
 at² + bt + c = 0
 ```
 
-Resolvida usando a fórmula de Bhaskara.
+Solved using the quadratic formula.
 
 ### 2. Bounding Box
 
-Para superfícies ilimitadas (cilindros, paraboloides, hiperboloides), associamos uma **bounding box** (caixa delimitadora AABB - Axis-Aligned Bounding Box) definida por:
+For unbounded surfaces (cylinders, paraboloids, hyperboloids), we associate an **AABB (Axis-Aligned Bounding Box)** defined by:
 
-- **bboxMin**: Ponto mínimo (x, y, z)
-- **bboxMax**: Ponto máximo (x, y, z)
+- **bboxMin**: Minimum point (x, y, z)
+- **bboxMax**: Maximum point (x, y, z)
 
-A interseção só é calculada se o raio interceptar a bounding box primeiro, otimizando o desempenho.
+The intersection is only calculated if the ray intersects the bounding box first, optimizing performance.
 
-### 3. Cálculo de Normais via Gradiente
+### 3. Normal Calculation via Gradient
 
-A normal em um ponto **P** da superfície é calculada usando o gradiente da função quádrica:
+The normal at a point **P** on the surface is calculated using the gradient of the quadric function:
 
 ```
 ∇Q(P) = (∂Q/∂x, ∂Q/∂y, ∂Q/∂z)
 ```
 
-Onde:
+Where:
 ```
 ∂Q/∂x = 2Ax + Dy + Ez + G
 ∂Q/∂y = 2By + Dx + Fz + H
 ∂Q/∂z = 2Cz + Ex + Fy + I
 ```
 
-O gradiente aponta na direção perpendicular à superfície, fornecendo a normal.
+The gradient points in the direction perpendicular to the surface, providing the normal.
 
-## Exemplos de Quádricas
+## Quadric Examples
 
-### Elipsoide
+### Ellipsoid
 
-Equação: `x²/a² + y²/b² + z²/c² = 1`
+Equation: `x²/a² + y²/b² + z²/c² = 1`
 
-Coeficientes:
+Coefficients:
 ```glsl
 A = 1/a², B = 1/b², C = 1/c²
 D = E = F = G = H = I = 0
 J = -1
 ```
 
-**Exemplo**: Elipsoide com a=0.8, b=1.2, c=0.6
+**Example**: Ellipsoid with a=0.8, b=1.2, c=0.6
 ```glsl
 A = 1.5625, B = 0.6944, C = 2.7778
 J = -1.0
@@ -84,25 +84,25 @@ bboxMin = vec3(-0.8, -1.2, -0.6)
 bboxMax = vec3(0.8, 1.2, 0.6)
 ```
 
-### Esfera
+### Sphere
 
-Caso especial do elipsoide onde `a = b = c = r`:
+Special case of ellipsoid where `a = b = c = r`:
 
 ```glsl
 A = B = C = 1
 J = -r²
 ```
 
-### Hiperboloide de Uma Folha
+### Hyperboloid of One Sheet
 
-Equação: `x²/a² + y²/b² - z²/c² = 1`
+Equation: `x²/a² + y²/b² - z²/c² = 1`
 
 ```glsl
 A = 1/a², B = 1/b², C = -1/c²
 J = -1
 ```
 
-**Exemplo**: a=0.5, b=0.5, c=1.0
+**Example**: a=0.5, b=0.5, c=1.0
 ```glsl
 A = 4.0, B = 4.0, C = -1.0
 J = -1.0
@@ -110,19 +110,19 @@ bboxMin = vec3(-1.0, -1.0, -2.0)
 bboxMax = vec3(1.0, 1.0, 2.0)
 ```
 
-### Paraboloide
+### Paraboloid
 
-Equação: `z = x² + y²`
+Equation: `z = x² + y²`
 
-Rearranjada: `x² + y² - z = 0`
+Rearranged: `x² + y² - z = 0`
 
 ```glsl
 A = 1, B = 1, C = 0
-I = -1  // termo linear em z
+I = -1  // linear term in z
 J = 0
 ```
 
-**Exemplo**:
+**Example**:
 ```glsl
 A = 1.0, B = 1.0
 I = -1.0
@@ -130,18 +130,18 @@ bboxMin = vec3(-1.5, -1.5, 0.0)
 bboxMax = vec3(1.5, 1.5, 4.5)
 ```
 
-### Cilindro
+### Cylinder
 
-Equação: `x² + y² = r²`
+Equation: `x² + y² = r²`
 
-Rearranjada: `x² + y² - r² = 0`
+Rearranged: `x² + y² - r² = 0`
 
 ```glsl
-A = 1, B = 1, C = 0  // sem termo z²
+A = 1, B = 1, C = 0  // no z² term
 J = -r²
 ```
 
-**Exemplo**: Cilindro com raio r=0.6
+**Example**: Cylinder with radius r=0.6
 ```glsl
 A = 1.0, B = 1.0
 J = -0.36
@@ -151,49 +151,49 @@ bboxMax = vec3(0.6, 0.6, 2.0)
 
 ### Cone
 
-Equação: `x² + y² - z² = 0`
+Equation: `x² + y² - z² = 0`
 
 ```glsl
 A = 1, B = 1, C = -1
 J = 0
 ```
 
-### Hiperboloide de Duas Folhas
+### Hyperboloid of Two Sheets
 
-Equação: `z²/c² - x²/a² - y²/b² = 1`
+Equation: `z²/c² - x²/a² - y²/b² = 1`
 
 ```glsl
 A = -1/a², B = -1/b², C = 1/c²
 J = -1
 ```
 
-## Como Adicionar uma Nova Quádrica
+## How to Add a New Quadric
 
-No arquivo `PathTrace.glsl`, dentro da função `initScene()`:
+In the `PathTrace.glsl` file, inside the `initScene()` function:
 
 ```glsl
 quadrics[index] = createQuadric(
-    A, B, C,           // Coeficientes quadráticos
-    D, E, F,           // Termos cruzados
-    G, H, I,           // Termos lineares
-    J,                 // Constante
-    bboxMin,           // vec3 - mínimo da bbox
-    bboxMax,           // vec3 - máximo da bbox
-    materialIndex      // índice do material
+    A, B, C,           // Quadratic coefficients
+    D, E, F,           // Cross terms
+    G, H, I,           // Linear terms
+    J,                 // Constant
+    bboxMin,           // vec3 - bbox minimum
+    bboxMax,           // vec3 - bbox maximum
+    materialIndex      // material index
 );
 ```
 
-## Limitações e Considerações
+## Limitations and Considerations
 
-1. **Bounding Box**: Essencial para superfícies ilimitadas. Sem ela, a quádrica se estenderia infinitamente.
+1. **Bounding Box**: Essential for unbounded surfaces. Without it, the quadric would extend infinitely.
 
-2. **Precisão Numérica**: Valores muito pequenos de gradiente podem causar problemas. O código verifica `|∇Q| < ε` antes de usar.
+2. **Numerical Precision**: Very small gradient values can cause issues. The code checks `|∇Q| < ε` before using.
 
-3. **Performance**: A interseção raio-quádrica requer resolver uma equação quadrática, que é mais custosa que raio-esfera mas mais barata que malhas triangulares.
+3. **Performance**: Ray-quadric intersection requires solving a quadratic equation, which is more expensive than ray-sphere but cheaper than triangle meshes.
 
-4. **Número Máximo**: Atualmente definido em `#define NUM_QUADRICS 4`. Ajuste conforme necessário.
+4. **Maximum Number**: Currently defined as `#define NUM_QUADRICS 4`. Adjust as needed.
 
-## Referências
+## References
 
 - **Physically Based Rendering** - Matt Pharr, Wenzel Jakob, Greg Humphreys
 - **Ray Tracing Gems** - Eric Haines, Tomas Akenine-Möller
