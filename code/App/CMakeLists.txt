@@ -16,6 +16,8 @@ set(SOURCES
     Source/Math/Utils.cpp
     Source/Math/MonteCarlo.h
     Source/Math/MonteCarlo.cpp
+    Source/Quadric/Quadric.h
+    Source/Quadric/Quadric.cpp
     vendor/stb/stb_image.h
     vendor/stb/stb_image.cpp
 )
@@ -26,6 +28,7 @@ add_executable(App ${SOURCES})
 target_link_libraries(App glfw)
 target_link_libraries(App glad)
 target_link_libraries(App glm)
+target_link_libraries(App imgui)
 
 target_include_directories(App PRIVATE vendor/stb)
 target_include_directories(App PRIVATE Source)

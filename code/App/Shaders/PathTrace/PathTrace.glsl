@@ -22,6 +22,24 @@ uniform float uFocalLength;
 uniform float uAperture;
 uniform float uFocusDistance;
 
+// Quadrics from C++
+uniform int uNumQuadrics;
+
+// Quadric coefficients as separate arrays (GLSL 410 compatibility)
+uniform float uQuadrics_A[8];
+uniform float uQuadrics_B[8];
+uniform float uQuadrics_C[8];
+uniform float uQuadrics_D[8];
+uniform float uQuadrics_E[8];
+uniform float uQuadrics_F[8];
+uniform float uQuadrics_G[8];
+uniform float uQuadrics_H[8];
+uniform float uQuadrics_I[8];
+uniform float uQuadrics_J[8];
+uniform vec3 uQuadrics_bboxMin[8];
+uniform vec3 uQuadrics_bboxMax[8];
+uniform int uQuadrics_materialIndex[8];
+
 // ----------------------------------------------------------------------------
 // CONSTANTS
 // ----------------------------------------------------------------------------
@@ -340,6 +358,18 @@ struct Plane
     int materialIndex;
 };
 
+// Quadric surface: Ax^2 + By^2 + Cz^2 + Dxy + Exz + Fyz + Gx + Hy + Iz + J = 0
+struct Quadric
+{
+    float A, B, C;      // x^2, y^2, z^2 coefficients
+    float D, E, F;      // xy, xz, yz cross terms
+    float G, H, I;      // x, y, z linear terms
+    float J;            // constant term
+    vec3 bboxMin;       // Bounding box minimum
+    vec3 bboxMax;       // Bounding box maximum
+    int materialIndex;
+};
+
 struct HitRecord
 {
     float t;
@@ -394,6 +424,112 @@ bool intersectPlane(vec3 ro, vec3 rd, Plane plane, inout HitRecord hit)
     hit.frontFace = denom < 0.0;
     hit.normal = hit.frontFace ? plane.normal : -plane.normal;
     hit.materialIndex = plane.materialIndex;
+    
+    return true;
+}
+
+// Ray-bounding box intersection (AABB)
+bool intersectAABB(vec3 ro, vec3 rd, vec3 bboxMin, vec3 bboxMax)
+{
+    vec3 invDir = 1.0 / rd;
+    vec3 t0 = (bboxMin - ro) * invDir;
+    vec3 t1 = (bboxMax - ro) * invDir;
+    
+    vec3 tmin = min(t0, t1);
+    vec3 tmax = max(t0, t1);
+    
+    float tNear = max(max(tmin.x, tmin.y), tmin.z);
+    float tFar = min(min(tmax.x, tmax.y), tmax.z);
+    
+    return tNear <= tFar && tFar >= EPSILON;
+}
+
+// Evaluate quadric at point P
+// Q(P) = Ax^2 + By^2 + Cz^2 + Dxy + Exz + Fyz + Gx + Hy + Iz + J
+float evaluateQuadric(Quadric q, vec3 P)
+{
+    float x = P.x, y = P.y, z = P.z;
+    return q.A * x * x + q.B * y * y + q.C * z * z +
+           q.D * x * y + q.E * x * z + q.F * y * z +
+           q.G * x + q.H * y + q.I * z + q.J;
+}
+
+// Compute gradient (normal) at point P
+// ∇Q = (∂Q/∂x, ∂Q/∂y, ∂Q/∂z)
+// ∂Q/∂x = 2Ax + Dy + Ez + G
+// ∂Q/∂y = 2By + Dx + Fz + H
+// ∂Q/∂z = 2Cz + Ex + Fy + I
+vec3 quadricGradient(Quadric q, vec3 P)
+{
+    float x = P.x, y = P.y, z = P.z;
+    return vec3(
+        2.0 * q.A * x + q.D * y + q.E * z + q.G,
+        2.0 * q.B * y + q.D * x + q.F * z + q.H,
+        2.0 * q.C * z + q.E * x + q.F * y + q.I
+    );
+}
+
+// Ray-quadric intersection
+// Ray: P(t) = ro + t * rd
+// Substitute into quadric equation and solve quadratic: at^2 + bt + c = 0
+bool intersectQuadric(vec3 ro, vec3 rd, Quadric q, inout HitRecord hit)
+{
+    // Quadric: Ax² + By² + Cz² + Dxy + Exz + Fyz + Gx + Hy + Iz + J = 0
+    // Ray: P(t) = ro + t*rd
+    
+    vec3 d = rd;
+    vec3 o = ro;
+    
+    // Coefficient of t²
+    float Aq = q.A * d.x * d.x + q.B * d.y * d.y + q.C * d.z * d.z +
+               q.D * d.x * d.y + q.E * d.x * d.z + q.F * d.y * d.z;
+    
+    // Coefficient of t
+    float Bq = 2.0 * (q.A * o.x * d.x + q.B * o.y * d.y + q.C * o.z * d.z) +
+               q.D * (o.x * d.y + o.y * d.x) +
+               q.E * (o.x * d.z + o.z * d.x) +
+               q.F * (o.y * d.z + o.z * d.y) +
+               q.G * d.x + q.H * d.y + q.I * d.z;
+    
+    // Constant term
+    float Cq = q.A * o.x * o.x + q.B * o.y * o.y + q.C * o.z * o.z +
+               q.D * o.x * o.y + q.E * o.x * o.z + q.F * o.y * o.z +
+               q.G * o.x + q.H * o.y + q.I * o.z + q.J;
+    
+    // Solve Aq*t² + Bq*t + Cq = 0
+    float discriminant = Bq * Bq - 4.0 * Aq * Cq;
+    
+    if (discriminant < 0.0) return false;
+    
+    float sqrtDisc = sqrt(discriminant);
+    float t1 = (-Bq - sqrtDisc) / (2.0 * Aq);
+    float t2 = (-Bq + sqrtDisc) / (2.0 * Aq);
+    
+    // Try nearest intersection first
+    float t = t1;
+    if (t < EPSILON || t >= hit.t)
+    {
+        t = t2;
+        if (t < EPSILON || t >= hit.t)
+            return false;
+    }
+    
+    vec3 P = ro + rd * t;
+    
+    // Compute normal via gradient
+    vec3 grad = quadricGradient(q, P);
+    float gradLen = length(grad);
+    
+    if (gradLen < EPSILON) return false;
+    
+    vec3 normal = grad / gradLen;
+    
+    // Update hit record
+    hit.t = t;
+    hit.position = P;
+    hit.frontFace = dot(rd, normal) < 0.0;
+    hit.normal = hit.frontFace ? normal : -normal;
+    hit.materialIndex = q.materialIndex;
     
     return true;
 }
@@ -465,6 +601,29 @@ bool intersectScene(vec3 ro, vec3 rd, inout HitRecord hit)
             hitAnything = true;
     }
     
+    // Quadrics (from uniforms) - DEBUG VERSION
+    for (int i = 0; i < uNumQuadrics && i < 8; i++)
+    {
+        Quadric q;
+        q.A = uQuadrics_A[i];
+        q.B = uQuadrics_B[i];
+        q.C = uQuadrics_C[i];
+        q.D = uQuadrics_D[i];
+        q.E = uQuadrics_E[i];
+        q.F = uQuadrics_F[i];
+        q.G = uQuadrics_G[i];
+        q.H = uQuadrics_H[i];
+        q.I = uQuadrics_I[i];
+        q.J = uQuadrics_J[i];
+        q.bboxMin = uQuadrics_bboxMin[i];
+        q.bboxMax = uQuadrics_bboxMax[i];
+        q.materialIndex = uQuadrics_materialIndex[i];
+        
+        bool quadricHit = intersectQuadric(ro, rd, q, hit);
+        if (quadricHit)
+            hitAnything = true;
+    }
+    
     // Cornell box walls
     Plane floor;
     floor.point = vec3(0.0, -3.0, 0.0);
@@ -522,7 +681,7 @@ vec3 sampleEnvironment(vec3 rd)
         skyColor = mix(skyColor, vec3(0.2, 0.15, 0.1), -rd.y);
     }
     
-    return skyColor * 0.5 + sunColor + sunGlow;
+    return vec3(0.0, 0.0, 0.0); //skyColor * 0.5; + sunColor + sunGlow;
 }
 
 // ----------------------------------------------------------------------------
