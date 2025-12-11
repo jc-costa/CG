@@ -18,7 +18,6 @@ set(SOURCES
     Source/Math/MonteCarlo.cpp
     Source/Quadric/Quadric.h
     Source/Quadric/Quadric.cpp
-    Source/Quadric/QuadricExample.cpp
     vendor/stb/stb_image.h
     vendor/stb/stb_image.cpp
 )
