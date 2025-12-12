@@ -1,4 +1,4 @@
-# Makefile for App - OpenGL Spheres Renderer
+# Makefile for App - OpenGL Cinematic Path Tracer Renderer
 
 BUILD_DIR = build
 APP_EXECUTABLE = $(BUILD_DIR)/App/App
