@@ -1,0 +1,129 @@
+# ============================================================================
+# TEST WITH CAMERA AND LIGHT - Custom Extensions Test
+# ============================================================================
+#
+# PURPOSE:
+#   Tests the SceneManager's parsing of custom OBJ extensions for camera
+#   and light definitions. These extensions follow the Cornell Box format.
+#
+# CUSTOM EXTENSIONS:
+#
+#   c <eye_idx> <target_idx> <up_idx>
+#   ----------------------------------
+#   Defines a camera using vertex/normal indices.
+#   - eye_idx:    Vertex index for camera position
+#   - target_idx: Vertex index for look-at target
+#   - up_idx:     Normal index for up vector
+#
+#   Negative indices are relative to current position:
+#   -1 = last element, -2 = second to last, etc.
+#
+#   lp <vertex_idx>
+#   ---------------
+#   Defines a point light at the specified vertex position.
+#   Negative indices supported as with camera.
+#
+# SCENE LAYOUT:
+#
+#   Top view (looking down -Y axis):
+#
+#     Camera at (0, 2, 5)
+#         *
+#         |
+#         |  looking at (0, 0.5, 0)
+#         v
+#      +-----+
+#      | Box |  (centered at origin)
+#      +-----+
+#         |
+#   ------+------ Ground plane (y=0)
+#
+#   Side view (looking down -X axis):
+#
+#     Light (0, 3, 0)
+#         *
+#
+#     Camera (0, 2, 5)
+#         *---------> (looking at box)
+#
+#       +---+
+#       |Box|
+#   ----+---+---- Ground
+#
+# VERTEX ORDER (for negative index calculation):
+#   1-4:   Ground plane
+#   5-16:  Box vertices
+#   17:    Light position  (-3 from end)
+#   18:    Camera position (-2 from end)
+#   19:    Camera target   (-1 from end)
+#
+# EXPECTED RESULTS:
+#   - scene.HasCamera = true
+#   - scene.CameraPosition ≈ (0, 2, 5) (before normalization)
+#   - scene.CameraTarget ≈ (0, 0.5, 0) (before normalization)
+#   - scene.CameraUp = (0, 1, 0)
+#   - scene.HasLight = true
+#   - scene.LightPosition ≈ (0, 3, 0) (before normalization)
+#
+# ============================================================================
+
+mtllib ./quadric_materials.mtl
+
+# Scene geometry - simple ground plane
+v -2.0  0.0 -2.0
+v  2.0  0.0 -2.0
+v  2.0  0.0  2.0
+v -2.0  0.0  2.0
+
+# A simple box on the ground
+v -0.5  0.0 -0.5
+v  0.5  0.0 -0.5
+v  0.5  1.0 -0.5
+v -0.5  1.0 -0.5
+v -0.5  0.0  0.5
+v  0.5  0.0  0.5
+v  0.5  1.0  0.5
+v -0.5  1.0  0.5
+
+usemtl diffuse_white
+
+# Ground plane
+f 1 2 3
+f 1 3 4
+
+usemtl diffuse_blue
+
+# Box faces
+f 5 6 7
+f 5 7 8
+f 9 11 10
+f 9 12 11
+f 5 9 10
+f 5 10 6
+f 8 7 11
+f 8 11 12
+f 5 8 12
+f 5 12 9
+f 6 10 11
+f 6 11 7
+
+# Light position (vertex -3 relative to end)
+v 0.0 3.0 0.0
+
+# Camera position (vertex -2 relative to end)
+v 0.0 2.0 5.0
+
+# Camera target (vertex -1 relative to end)
+v 0.0 0.5 0.0
+
+# Up vector (normal -1 relative to end)
+vn 0.0 1.0 0.0
+
+# Camera definition using negative indices:
+# eye = -2 (camera position), target = -1 (camera target), up = -1 (up vector)
+g Camera
+c -2 -1 -1
+
+# Light point definition (light is at vertex -3)
+lp -3
+

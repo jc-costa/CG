@@ -1,0 +1,42 @@
+# ============================================================================
+# MINIMAL TEST OBJ - For basic parsing tests
+# ============================================================================
+#
+# PURPOSE:
+#   The simplest possible valid OBJ file - a single triangle. Used to test
+#   the parser's handling of minimal input without materials or normals.
+#
+# TESTS:
+#   - Basic vertex (v) parsing
+#   - Basic face (f) parsing with vertex-only format
+#   - Automatic face normal generation (when no vn provided)
+#   - Minimal file handling
+#   - Default material assignment (index 0)
+#
+# EXPECTED RESULTS:
+#   - Triangle count: 1
+#   - Material count: 1 (default material only)
+#   - Generated normal: (0, 0, 1) - perpendicular to XY plane
+#   - Vertices form right triangle in XY plane
+#
+# GEOMETRY:
+#        V2 (0.5, 1, 0)
+#           /\
+#          /  \
+#         /    \
+#   V0 (0,0,0)--V1 (1,0,0)
+#
+# FACE WINDING:
+#   Counter-clockwise when viewed from +Z
+#   Normal points in +Z direction
+#
+# ============================================================================
+
+# Three vertices defining a triangle in the XY plane
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 0.5 1.0 0.0
+
+# Single face referencing all three vertices (1-based indexing)
+f 1 2 3
+

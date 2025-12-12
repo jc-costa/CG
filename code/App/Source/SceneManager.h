@@ -6,7 +6,13 @@
 #include <filesystem>
 
 #include <glm/glm.hpp>
-#include <glad/gl.h>
+
+// Conditional OpenGL inclusion for testing
+#ifdef USE_MOCK_GL
+    #include "mock_gl.h"
+#else
+    #include <glad/gl.h>
+#endif
 
 // ============================================================================
 // SCENE MANAGER - OBJ/MTL Scene Loading System

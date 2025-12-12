@@ -309,6 +309,12 @@ static void RenderImGui()
 		ImGui::Separator();
 		ImGui::Text("Quadrics:");
 		ImGui::BulletText("G: Toggle Quadric Editor");
+
+		ImGui::Separator();
+        ImGui::Text("Scene Mesh Loader");
+        ImGui::BulletText("I: Next procedural scene");
+        ImGui::BulletText("O: Load cornell_box.obj");
+        ImGui::BulletText("P: Toggle OBJ/procedural scene");
 		ImGui::End();
 	}
 	
