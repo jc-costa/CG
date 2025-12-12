@@ -1,0 +1,118 @@
+# ============================================================================
+# ELLIPSOID - Quadric Surface Test
+# ============================================================================
+#
+# DESCRIPTION:
+#   An ellipsoid is a quadric surface that generalizes the sphere to allow
+#   different radii along each axis. This creates a "stretched" or "squashed"
+#   sphere shape.
+#
+# QUADRIC CLASSIFICATION:
+#   Type: Ellipsoid (central quadric)
+#   Topology: Closed, bounded surface
+#   Gaussian Curvature: Positive everywhere (K > 0)
+#   Note: Sphere is special case where a = b = c
+#
+# MATHEMATICAL DEFINITION:
+#   Implicit form:    (x/a)² + (y/b)² + (z/c)² = 1
+#   Parametric form:  x = a·sin(θ)·cos(φ)
+#                     y = b·sin(θ)·sin(φ)
+#                     z = c·cos(θ)
+#   Where: θ ∈ [0, π], φ ∈ [0, 2π]
+#
+# QUADRIC COEFFICIENTS (For this ellipsoid with a=2, b=1, c=0.5):
+#   General form: (x/2)² + y² + (z/0.5)² = 1
+#   Expanded: x²/4 + y² + 4z² = 1
+#   Rearranged: 0.25x² + y² + 4z² - 1 = 0
+#
+#   A = 1/a² = 0.25
+#   B = 1/b² = 1.0
+#   C = 1/c² = 4.0
+#   D = E = F = G = H = I = 0
+#   J = -1
+#   Matrix form: diag(0.25, 1, 4, -1)
+#
+# GEOMETRY:
+#   - Semi-axes: a=2.0, b=1.0, c=0.5
+#   - Center: Origin (0, 0, 0)
+#   - X extent: [-2, 2]
+#   - Y extent: [-1, 1]
+#   - Z extent: [-0.5, 0.5]
+#   - Surface area: Approximated by Knud Thomsen formula
+#   - Volume: (4/3)πabc ≈ 4.189
+#
+# NORMAL CALCULATION:
+#   For ellipsoid (x/a)² + (y/b)² + (z/c)² = 1 at point (x,y,z):
+#   N = normalize(x/a², y/b², z/c²)
+#   = normalize(x/4, y, 4z) for this ellipsoid
+#
+# PRINCIPAL CURVATURES:
+#   At poles (0,0,±c): k₁ = k₂ = a·b/c² (umbilical points if a=b)
+#   At equator (a,0,0): k₁ = c/a², k₂ = b²/(a·c)
+#   Varying curvature tests interpolation quality
+#
+# OBJ FEATURES TESTED:
+#   - Non-uniform vertex distribution
+#   - Non-normalized input normals (parser should normalize)
+#   - Different curvatures in different directions
+#
+# ============================================================================
+
+mtllib ./quadric_materials.mtl
+
+# Ellipsoid vertices (sphere scaled by 2, 1, 0.5)
+v  0.000000  1.000000  0.000000
+v  1.788854  0.447214  0.000000
+v  0.552786  0.447214  0.425326
+v -1.447214  0.447214  0.262866
+v -1.447214  0.447214 -0.262866
+v  0.552786  0.447214 -0.425326
+v  1.447214 -0.447214  0.262866
+v -0.552786 -0.447214  0.425326
+v -1.788854 -0.447214  0.000000
+v -0.552786 -0.447214 -0.425326
+v  1.447214 -0.447214 -0.262866
+v  0.000000 -1.000000  0.000000
+
+# Normals for ellipsoid: n = normalize(x/a², y/b², z/c²)
+vn  0.000000  1.000000  0.000000
+vn  0.447214  0.447214  0.000000
+vn  0.138197  0.447214  0.850651
+vn -0.361803  0.447214  0.525731
+vn -0.361803  0.447214 -0.525731
+vn  0.138197  0.447214 -0.850651
+vn  0.361803 -0.447214  0.525731
+vn -0.138197 -0.447214  0.850651
+vn -0.447214 -0.447214  0.000000
+vn -0.138197 -0.447214 -0.850651
+vn  0.361803 -0.447214 -0.525731
+vn  0.000000 -1.000000  0.000000
+
+usemtl glass_tinted
+
+# Top cap
+f 1//1 2//2 3//3
+f 1//1 3//3 4//4
+f 1//1 4//4 5//5
+f 1//1 5//5 6//6
+f 1//1 6//6 2//2
+
+# Middle band
+f 2//2 7//7 3//3
+f 3//3 7//7 8//8
+f 3//3 8//8 4//4
+f 4//4 8//8 9//9
+f 4//4 9//9 5//5
+f 5//5 9//9 10//10
+f 5//5 10//10 6//6
+f 6//6 10//10 11//11
+f 6//6 11//11 2//2
+f 2//2 11//11 7//7
+
+# Bottom cap
+f 12//12 8//8 7//7
+f 12//12 9//9 8//8
+f 12//12 10//10 9//9
+f 12//12 11//11 10//10
+f 12//12 7//7 11//11
+

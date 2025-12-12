@@ -28,8 +28,8 @@
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-static constexpr int INITIAL_WIDTH = 1920;
-static constexpr int INITIAL_HEIGHT = 1080;
+static constexpr int INITIAL_WIDTH = 1080;
+static constexpr int INITIAL_HEIGHT = 600;
 static constexpr int MAX_BOUNCES = 4;
 static constexpr float CAMERA_SPEED = 3.0f;
 static constexpr float MOUSE_SENSITIVITY = 0.002f;
@@ -212,6 +212,31 @@ static constexpr int NUM_SCENES = 4;
 static SceneManager s_SceneManager;
 static bool s_UseOBJScene = false;
 
+// Quadric mesh files for cycling with 'M' key
+static const std::vector<std::string> s_QuadricMeshFiles = {
+	"assets/box.obj",                         // 0: Unit Cube
+	"assets/sphere.obj",                      // 1: Icosphere
+	"assets/cylinder.obj",                    // 2: Cylinder
+	"assets/cone.obj",                        // 3: Cone
+	"assets/ellipsoid.obj",                   // 4: Ellipsoid
+	"assets/elliptic_paraboloid.obj",         // 5: Elliptic Paraboloid
+	"assets/hyperbolic_paraboloid.obj",       // 6: Hyperbolic Paraboloid
+	"assets/hyperboloid_one_sheet.obj",       // 7: Hyperboloid One Sheet
+	"assets/hyperboloid_two_sheets.obj"       // 8: Hyperboloid Two Sheets
+};
+static const std::vector<std::string> s_QuadricMeshNames = {
+	"Box (Cube)",
+	"Sphere (Icosphere)",
+	"Cylinder",
+	"Cone",
+	"Ellipsoid",
+	"Elliptic Paraboloid (Bowl)",
+	"Hyperbolic Paraboloid (Saddle)",
+	"Hyperboloid of One Sheet",
+	"Hyperboloid of Two Sheets"
+};
+static int s_CurrentMeshIndex = -1;  // Start at -1 so first press loads index 0
+
 static std::filesystem::path s_ShaderDir;
 
 // ============================================================================
@@ -311,10 +336,10 @@ static void RenderImGui()
 		ImGui::BulletText("G: Toggle Quadric Editor");
 
 		ImGui::Separator();
-        ImGui::Text("Scene Mesh Loader");
-        ImGui::BulletText("I: Next procedural scene");
-        ImGui::BulletText("O: Load cornell_box.obj");
-        ImGui::BulletText("P: Toggle OBJ/procedural scene");
+		ImGui::Text("Scene/Mesh:");
+		ImGui::BulletText("I: Procedural scenes");
+		ImGui::BulletText("O: Cornell Box");
+		ImGui::BulletText("M/Shift+M: Quadric meshes");
 		ImGui::End();
 	}
 	
@@ -594,15 +619,22 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		s_UseOBJScene = false;  // Switch back to procedural
 		s_SceneIndex = (s_SceneIndex + 1) % NUM_SCENES;
 		s_ResetAccumulation = true;
+		
+		// Reset camera to default position for procedural scenes
+		s_Camera.Position = glm::vec3(0.0f, 0.0f, 8.0f);
+		s_Camera.Forward = glm::vec3(0.0f, 0.0f, -1.0f);
+		s_Camera.Up = glm::vec3(0.0f, 1.0f, 0.0f);
+		s_Camera.RecalculateView();
+		
 		const char* sceneNames[] = {"Cornell Box Showcase", "Simple Spheres", "Glass & Metal Study", "Metals Lineup"};
 		std::cout << "Scene: " << sceneNames[s_SceneIndex] << " (" << s_SceneIndex << "/" << (NUM_SCENES - 1) << ")" << std::endl;
 	}
 	
-	// Load OBJ scene (cornell_box.obj)
+	// Load Cornell Box OBJ scene (O key)
 	if (key == GLFW_KEY_O && action == GLFW_PRESS)
 	{
 		std::filesystem::path objPath = GetShaderPath("assets/cornell_box.obj");
-		std::cout << "Loading OBJ: " << objPath.string() << std::endl;
+		std::cout << "Loading Cornell Box: " << objPath.string() << std::endl;
 		
 		s_SceneManager.Clear();
 		if (s_SceneManager.LoadOBJ(objPath))
@@ -623,28 +655,82 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 					s_Camera.RecalculateView();
 				}
 				
-				std::cout << "OBJ scene loaded: " << s_SceneManager.GetTriangleCount() 
+				std::cout << "Cornell Box loaded: " << s_SceneManager.GetTriangleCount() 
 						  << " triangles" << std::endl;
 			}
 		}
 		else
 		{
-			std::cerr << "Failed to load OBJ file" << std::endl;
+			std::cerr << "Failed to load Cornell Box" << std::endl;
 		}
 	}
 	
-	// Toggle between OBJ and procedural scene
-	if (key == GLFW_KEY_P && action == GLFW_PRESS)
+	// Cycle through quadric mesh OBJ files (M = next, Shift+M = previous)
+	if (key == GLFW_KEY_M && action == GLFW_PRESS)
 	{
-		if (s_SceneManager.GetTriangleCount() > 0)
+		int numMeshes = static_cast<int>(s_QuadricMeshFiles.size());
+		
+		// Shift+M = previous mesh, M = next mesh
+		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ||
+			glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
 		{
-			s_UseOBJScene = !s_UseOBJScene;
-			s_ResetAccumulation = true;
-			std::cout << "Scene mode: " << (s_UseOBJScene ? "OBJ Mesh" : "Procedural") << std::endl;
+			s_CurrentMeshIndex = (s_CurrentMeshIndex - 1 + numMeshes) % numMeshes;
 		}
 		else
 		{
-			std::cout << "No OBJ loaded. Press 'O' to load cornell_box.obj" << std::endl;
+			s_CurrentMeshIndex = (s_CurrentMeshIndex + 1) % numMeshes;
+		}
+		
+		std::filesystem::path objPath = GetShaderPath(s_QuadricMeshFiles[s_CurrentMeshIndex]);
+		std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" << std::endl;
+		std::cout << "[Quadric " << s_CurrentMeshIndex << "/" << (numMeshes - 1) << "] "
+				  << s_QuadricMeshNames[s_CurrentMeshIndex] << std::endl;
+		std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" << std::endl;
+		
+		s_SceneManager.Clear();
+		bool loaded = false;
+		
+		// Try primary path
+		if (s_SceneManager.LoadOBJ(objPath))
+		{
+			loaded = true;
+		}
+		else
+		{
+			// Try alternative paths for different working directories
+			std::vector<std::filesystem::path> altPaths = {
+				std::filesystem::path("..") / "App" / s_QuadricMeshFiles[s_CurrentMeshIndex],
+				std::filesystem::path("App") / s_QuadricMeshFiles[s_CurrentMeshIndex],
+				std::filesystem::current_path() / s_QuadricMeshFiles[s_CurrentMeshIndex]
+			};
+			
+			for (const auto& altPath : altPaths)
+			{
+				if (std::filesystem::exists(altPath) && s_SceneManager.LoadOBJ(altPath))
+				{
+					loaded = true;
+					break;
+				}
+			}
+		}
+		
+		if (loaded && s_SceneManager.UploadToGPU())
+		{
+			s_UseOBJScene = true;
+			s_ResetAccumulation = true;
+			
+			// Default camera for quadric surfaces - positioned to see the whole mesh
+			s_Camera.Position = glm::vec3(0.0f, 2.0f, 10.0f);
+			s_Camera.Forward = glm::normalize(glm::vec3(0.0f, -0.2f, -1.0f));
+			s_Camera.Up = glm::vec3(0.0f, 1.0f, 0.0f);
+			s_Camera.RecalculateView();
+			
+			std::cout << "Triangles: " << s_SceneManager.GetTriangleCount() 
+					  << " | Materials: " << s_SceneManager.GetMaterialCount() << std::endl;
+		}
+		else
+		{
+			std::cerr << "Failed to load mesh file" << std::endl;
 		}
 	}
 }
@@ -913,9 +999,9 @@ int main()
 	}
 
 	std::cout << "\n=== SCENE CONTROLS ===" << std::endl;
-	std::cout << "I: Cycle procedural scenes" << std::endl;
-    std::cout << "O: Load OBJ scene (cornell_box.obj)" << std::endl;
-    std::cout << "P: Toggle OBJ/Procedural mode" << std::endl;
+	std::cout << "I: Procedural scenes" << std::endl;
+	std::cout << "O: Cornell Box" << std::endl;
+	std::cout << "M: Quadric meshes (Shift+M: previous)" << std::endl;
 
 	std::cout << "\n=== CONTROLS ===" << std::endl;
 	std::cout << "Right Mouse + WASD: Move camera" << std::endl;
