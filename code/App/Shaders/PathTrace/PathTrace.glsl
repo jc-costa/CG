@@ -50,6 +50,7 @@ uniform sampler2D uTriMatTex;      // Triangle material indices
 uniform sampler2D uMaterialsTex;   // Material properties
 uniform int uNumTriangles;         // Number of triangles in mesh
 uniform bool uUseOBJScene;         // Whether to use OBJ scene instead of procedural
+uniform bool uShowSkybox;          // Whether to show environment skybox (for quadric meshes)
 
 
 // ----------------------------------------------------------------------------
@@ -930,7 +931,12 @@ vec3 sampleEnvironment(vec3 rd)
         skyColor = mix(skyColor, vec3(0.2, 0.15, 0.1), -rd.y);
     }
     
-    return vec3(0,0,0); // skyColor * 0.5;//+ sunColor + sunGlow;
+    // Show sky when a quadric mesh is selected (M or Shift+M pressed)
+    if (uShowSkybox)
+    {
+        return skyColor * 0.5 + sunColor + sunGlow;
+    }
+    return vec3(0,0,0);
 }
 
 // ----------------------------------------------------------------------------

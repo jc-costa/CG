@@ -838,6 +838,8 @@ static void RenderPathTrace()
 	
 	// OBJ scene uniforms
 	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uUseOBJScene"), s_UseOBJScene ? 1 : 0);
+	// Show skybox when a quadric mesh is loaded via M/Shift+M
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uShowSkybox"), s_CurrentMeshIndex >= 0 ? 1 : 0);
 	if (s_UseOBJScene && s_SceneManager.GetTriangleCount() > 0)
 	{
 		s_SceneManager.BindTextures(s_PathTraceShader);
