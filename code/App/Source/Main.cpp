@@ -30,7 +30,7 @@
 // ============================================================================
 static constexpr int INITIAL_WIDTH = 1080;
 static constexpr int INITIAL_HEIGHT = 600;
-static constexpr int MAX_BOUNCES = 4;
+static constexpr int MAX_BOUNCES = 16;
 static constexpr float CAMERA_SPEED = 3.0f;
 static constexpr float MOUSE_SENSITIVITY = 0.002f;
 

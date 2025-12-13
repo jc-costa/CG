@@ -192,15 +192,32 @@ f 57 59 60
 # AREA LIGHT (on ceiling)
 # ============================================================================
 # A small rectangular light source centered on the ceiling
-# Position: center of the ceiling light opening
-# Vertex 61
+# Original Cornell Box light dimensions (approximately):
+#   x: 213 to 343 (130 units wide)
+#   y: 548.8 (on ceiling, slightly below for visibility)
+#   z: 227 to 332 (105 units deep)
+#
+# Vertices 61-64
 
-v 278 548.5 279.5
+v 343.0 548.7 227.0
+v 343.0 548.7 332.0
+v 213.0 548.7 332.0
+v 213.0 548.7 227.0
 
 usemtl light
+# Area light quad (facing downward into the room)
+# Winding order: counter-clockwise when viewed from below
+# to ensure normals point down into the room
+f 64 63 62
+f 64 62 61
+
+# Light center position for point light reference
+# Vertex 65
+v 278 548.5 279.5
+
 # Custom extension: lp <vertex_index>
 # Defines a point light at the referenced vertex position
-# Negative index -1 means "the last vertex" (vertex 61)
+# Negative index -1 means "the last vertex" (vertex 65)
 lp -1
 
 # ============================================================================
@@ -213,10 +230,10 @@ lp -1
 #   up_idx     - Normal index for up vector
 
 # Camera eye position (outside box, looking in)
-v  278 273 -300
+v  278 273 -800
 
 # Camera target (center of box)
-v  278 273 0
+v  278 273 279.5
 
 # Up vector (Y-up)
 vn  0 1 0
