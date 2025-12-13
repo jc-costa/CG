@@ -23,7 +23,7 @@
 
 #include "Shader.h"
 #include "Renderer.h"
-#include "SceneManager.h"
+#include "SceneManager/SceneManager.h"
 
 // ============================================================================
 // CONFIGURATION

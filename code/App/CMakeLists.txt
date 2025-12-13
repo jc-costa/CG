@@ -8,10 +8,10 @@ set(SOURCES
     Source/Shader.cpp
     Source/Renderer.h
     Source/Renderer.cpp
-    Source/FileManager.h
-    Source/FileManager.cpp
-    Source/SceneManager.h
-    Source/SceneManager.cpp
+    Source/SceneManager/FileManager.h
+    Source/SceneManager/FileManager.cpp
+    Source/SceneManager/SceneManager.h
+    Source/SceneManager/SceneManager.cpp
     Source/Math/Vec3.h
     Source/Math/Vec3.cpp
     Source/Math/Ray.h
