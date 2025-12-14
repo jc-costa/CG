@@ -271,16 +271,24 @@ void RenderPathTrace()
 ```
 code/App/
 ├── Source/
-│   ├── FileManager.h       # File I/O utilities
-│   ├── FileManager.cpp
-│   ├── SceneManager.h      # OBJ/MTL parser & GPU upload
-│   ├── SceneManager.cpp
-│   └── Main.cpp            # Integration & key handling
+│   ├── SceneManager/           # Scene loading subsystem
+│   │   ├── FileManager.h       # File I/O utilities
+│   │   ├── FileManager.cpp
+│   │   ├── SceneManager.h      # OBJ/MTL parser & GPU upload
+│   │   ├── SceneManager.cpp
+│   │   └── SceneManagerTest/   # Test suite for scene loading
+│   │       ├── SceneManagerTest.cpp
+│   │       ├── test.sh
+│   │       └── test_assets/    # OBJ/MTL test files
+│   ├── QuadricManager/         # Quadric surface management
+│   │   ├── QuadricManager.h    # Quadric data & ImGui editor
+│   │   └── QuadricManager.cpp
+│   └── Main.cpp                # Integration & key handling
 ├── Shaders/PathTrace/
-│   └── PathTrace.glsl      # Triangle intersection & materials
+│   └── PathTrace.glsl          # Triangle intersection & materials
 ├── assets/
-│   ├── cornell_box.obj     # Example scene
-│   └── cornell_box.mtl     # Materials for cornell box
+│   ├── cornell_box.obj         # Example scene
+│   └── cornell_box.mtl         # Materials for cornell box
 code/docs/
     └── OBJ_SCENE_LOADING.md    # This documentation
 ```

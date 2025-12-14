@@ -48,6 +48,9 @@ make clean  # Clean build files
 | **+ / -** | Adjust exposure |
 | **↑ / ↓** | Adjust max bounces |
 | **F** | Toggle depth of field |
+| **I** | Cycle scenes (Cornell Box / Procedural / Quadric Meshes) |
+| **Ctrl+Q** | Toggle quadric editor (ImGui) |
+| **Alt+[1-8]** | Select quadric N in editor |
 | **ESC** | Quit |
 
 ## Architecture
@@ -93,8 +96,8 @@ make clean  # Clean build files
 | [Shaders Reference](docs/SHADERS-REFERENCE.md)                        | In-depth explanation of shader code and algorithms          |
 | [**Path Tracing Algorithm**](docs/06-PATHTRACING-ALGORITHM.md)        | Comprehensive guide to the GPU path tracing implementation  |
 | [**Accumulation Bug Analysis**](docs/07-ACCUMULATION-BUG-ANALYSIS.md) | Detailed analysis of the ping-pong buffer bug and fix       |
-| [Quadrics User Guide](docs/USER_GUIDE_QUADRICS.md)                    | Instructions for using quadric surfaces (if applicable)     |
-| [Quadrics Theory](docs/QUADRICS.md)                                   | Mathematical background on quadric surfaces (if applicable) |
+| [Quadrics User Guide](docs/USER_GUIDE_QUADRICS.md)                    | Instructions for using quadric surfaces with ImGui editor   |
+| [Quadrics Theory](docs/QUADRICS.md)                                   | Mathematical background on quadric surfaces                 |
 | [Scene Loading](docs/OBJ_SCENE_LOADING.md)                            | Details on OBJ scene representation and loading process     |
 
 ## Building

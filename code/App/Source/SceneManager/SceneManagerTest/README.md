@@ -19,7 +19,7 @@ A comprehensive test suite for the `SceneManager` class, verifying OBJ/MTL file 
 ## Quick Start
 
 ```bash
-cd code/App/Source/SceneManagerTest
+cd code/App/Source/SceneManager/SceneManagerTest
 chmod +x test.sh
 ./test.sh
 ```
@@ -48,31 +48,44 @@ Expected output:
 ### Directory Structure
 
 ```
-SceneManagerTest/
-├── CMakeLists.txt              # CMake build configuration
-├── test.sh                     # Build and run script
-├── SceneManagerTest.cpp        # Main test file (33 tests)
-├── README.md                   # This documentation
-├── build/                      # Build artifacts (generated)
-│   ├── scene_manager_test      # Test executable
-│   ├── mock_gl.h               # Generated mock OpenGL header
-│   └── test_assets/            # Copied test files
-└── test_assets/                # Test OBJ/MTL files
-    ├── quadric_materials.mtl   # Material library
-    ├── box.obj                 # Unit cube
-    ├── sphere.obj              # Icosphere
-    ├── cylinder.obj            # Circular cylinder
-    ├── cone.obj                # Circular cone
-    ├── ellipsoid.obj           # Stretched sphere
-    ├── elliptic_paraboloid.obj # Bowl shape
-    ├── hyperbolic_paraboloid.obj # Saddle shape
-    ├── hyperboloid_one_sheet.obj # Cooling tower shape
-    ├── hyperboloid_two_sheets.obj # Two bowls
-    ├── test_minimal.obj        # Single triangle
-    ├── test_with_camera.obj    # Camera/light extensions
-    ├── test_polygon.obj        # Triangulation test
-    ├── test_negative_indices.obj # Relative indexing
-    └── test_all_materials.obj  # All material types
+code/App/Source/
+├── SceneManager/                   # Scene loading subsystem
+│   ├── FileManager.h               # File I/O utilities
+│   ├── FileManager.cpp
+│   ├── SceneManager.h              # OBJ/MTL parser & GPU upload
+│   ├── SceneManager.cpp
+│   └── SceneManagerTest/           # Test suite (this directory)
+│       ├── CMakeLists.txt          # CMake build configuration
+│       ├── test.sh                 # Build and run script
+│       ├── SceneManagerTest.cpp    # Main test file (33 tests)
+│       ├── README.md               # This documentation
+│       ├── build/                  # Build artifacts (generated)
+│       │   ├── scene_manager_test  # Test executable
+│       │   ├── mock_gl.h           # Generated mock OpenGL header
+│       │   └── test_assets/        # Copied test files
+│       └── test_assets/            # Test OBJ/MTL files
+│           ├── quadric_materials.mtl   # Material library
+│           ├── box.obj                 # Unit cube
+│           ├── sphere.obj              # Icosphere
+│           ├── cylinder.obj            # Circular cylinder
+│           ├── cone.obj                # Circular cone
+│           ├── ellipsoid.obj           # Stretched sphere
+│           ├── elliptic_paraboloid.obj # Bowl shape
+│           ├── hyperbolic_paraboloid.obj # Saddle shape
+│           ├── hyperboloid_one_sheet.obj # Cooling tower shape
+│           ├── hyperboloid_two_sheets.obj # Two bowls
+│           ├── test_minimal.obj        # Single triangle
+│           ├── test_with_camera.obj    # Camera/light extensions
+│           ├── test_polygon.obj        # Triangulation test
+│           ├── test_negative_indices.obj # Relative indexing
+│           └── test_all_materials.obj  # All material types
+├── QuadricManager/                 # Quadric surface management
+│   ├── QuadricManager.h
+│   └── QuadricManager.cpp
+└── Quadric/                        # Quadric surface library
+    ├── Quadric.h
+    ├── Quadric.cpp
+    └── README.md
 ```
 
 ### Design Principles
