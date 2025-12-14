@@ -22,6 +22,8 @@ set(SOURCES
     Source/Math/MonteCarlo.cpp
     Source/Quadric/Quadric.h
     Source/Quadric/Quadric.cpp
+    Source/QuadricManager/QuadricManager.h
+    Source/QuadricManager/QuadricManager.cpp
     vendor/stb/stb_image.h
     vendor/stb/stb_image.cpp
 )
