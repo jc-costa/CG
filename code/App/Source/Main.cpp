@@ -197,6 +197,7 @@ static int s_SceneIndex = 0;
 static constexpr int NUM_SCENES = 4;
 static SceneManager s_SceneManager;
 static bool s_UseOBJScene = false;
+static bool s_UseCornellBoxScene = false;
 
 // Quadric mesh files for cycling with 'M' key
 static const std::vector<std::string> s_QuadricMeshFiles = {
@@ -269,10 +270,27 @@ static void RenderImGui()
 		ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
 		ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiCond_FirstUseEver);
 		ImGui::Begin("Help & Controls", &s_ShowHelp);
+
+		ImGui::Separator();
+		ImGui::Text("Scene/Mesh:");
+		ImGui::BulletText("I: Procedural scenes");
+		ImGui::BulletText("O: Cornell Box");
+		ImGui::BulletText("M/Shift+M: Quadric meshes");
+
+
+		if (s_UseOBJScene == false)
+		{
+			ImGui::Separator();
+			ImGui::Text("Quadrics:");
+			ImGui::BulletText("G: Toggle Quadric Editor");
+		}
+
+        ImGui::Separator();
 		ImGui::Text("Camera Controls:");
 		ImGui::BulletText("Right Mouse + WASD: Move");
 		ImGui::BulletText("Q/E: Up/Down");
 		ImGui::BulletText("Shift: Move faster");
+
 		ImGui::Separator();
 		ImGui::Text("Rendering:");
 		ImGui::BulletText("R: Reload shaders");
@@ -280,15 +298,7 @@ static void RenderImGui()
 		ImGui::BulletText("+/-: Exposure");
 		ImGui::BulletText("Up/Down: Bounces");
 		ImGui::BulletText("F: Toggle DOF");
-		ImGui::Separator();
-		ImGui::Text("Quadrics:");
-		ImGui::BulletText("G: Toggle Quadric Editor");
 
-		ImGui::Separator();
-		ImGui::Text("Scene/Mesh:");
-		ImGui::BulletText("I: Procedural scenes");
-		ImGui::BulletText("O: Cornell Box");
-		ImGui::BulletText("M/Shift+M: Quadric meshes");
 		ImGui::End();
 	}
 	
@@ -417,6 +427,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) != GLFW_PRESS)
 	{
 		s_UseOBJScene = false;  // Switch back to procedural
+		s_UseCornellBoxScene = false; // Not using Cornell Box OBJ
 		s_SceneIndex = (s_SceneIndex + 1) % NUM_SCENES;
 		s_ResetAccumulation = true;
 		
@@ -442,6 +453,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 			if (s_SceneManager.UploadToGPU())
 			{
 				s_UseOBJScene = true;
+				s_UseCornellBoxScene = true;
 				s_ResetAccumulation = true;
 				
 				// Use camera from OBJ if available
@@ -517,6 +529,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		if (loaded && s_SceneManager.UploadToGPU())
 		{
 			s_UseOBJScene = true;
+			s_UseCornellBoxScene = false;
 			s_ResetAccumulation = true;
 			
 			// Default camera for quadric surfaces - positioned to see the whole mesh
@@ -638,8 +651,13 @@ static void RenderPathTrace()
 	
 	// OBJ scene uniforms
 	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uUseOBJScene"), s_UseOBJScene ? 1 : 0);
+
+
+	// CornellBox scene uniforms
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uUseCornellBoxScene"), s_UseCornellBoxScene ? 1 : 0);
+
 	// Show skybox when a quadric mesh is loaded via M/Shift+M
-	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uShowSkybox"), s_CurrentMeshIndex >= 0 ? 1 : 0);
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uShowSkybox"), s_CurrentMeshIndex >= 0 && s_UseCornellBoxScene == 0 ? 1 : 0);
 	if (s_UseOBJScene && s_SceneManager.GetTriangleCount() > 0)
 	{
 		s_SceneManager.BindTextures(s_PathTraceShader);
