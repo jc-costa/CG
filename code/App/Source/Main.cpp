@@ -237,8 +237,6 @@ static const std::vector<std::string> s_QuadricMeshNames = {
 };
 static int s_CurrentMeshIndex = -1;  // Start at -1 so first press loads index 0
 
-static std::filesystem::path s_ShaderDir;
-
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
