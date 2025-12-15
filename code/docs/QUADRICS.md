@@ -169,7 +169,33 @@ J = -1
 
 ## How to Add a New Quadric
 
-In the `PathTrace.glsl` file, inside the `initScene()` function:
+### Method 1: Using the ImGui Editor (Runtime)
+
+1. Press **Ctrl+Q** or **Q** to open the Quadric Editor
+2. Select a quadric slot (0-7) from the dropdown
+3. Adjust the coefficients using the sliders
+4. Set the bounding box and material
+5. Changes take effect immediately
+
+### Method 2: In Code (Permanent)
+
+Add to `QuadricManager::InitializeDefaults()` in `Source/QuadricManager/QuadricManager.cpp`:
+
+```cpp
+m_Quadrics[index] = {
+    A, B, C,           // Quadratic coefficients
+    D, E, F,           // Cross terms
+    G, H, I,           // Linear terms
+    J,                 // Constant
+    bboxMin,           // glm::vec3 - bbox minimum
+    bboxMax,           // glm::vec3 - bbox maximum
+    materialIndex      // material index
+};
+```
+
+### Method 3: In Shader (Advanced)
+
+In `PathTrace.glsl`, inside the `initScene()` function:
 
 ```glsl
 quadrics[index] = createQuadric(
@@ -183,6 +209,25 @@ quadrics[index] = createQuadric(
 );
 ```
 
+## Architecture
+
+The quadric implementation is organized into two main components:
+
+### QuadricManager (`Source/QuadricManager/`)
+
+The `QuadricManager` class provides:
+- **Quadric Storage**: Manages up to 8 simultaneous quadrics
+- **ImGui Editor**: Visual interface for real-time coefficient editing
+- **Shader Upload**: Sends quadric data to the GPU path tracer
+- **Default Initialization**: Pre-configured example quadrics
+
+### Quadric Library (`Source/Quadric/`)
+
+The `Quadric` namespace provides:
+- **QuadricSurface Class**: CPU-side quadric representation and ray intersection
+- **Factory Methods**: `CreateSphere()`, `CreateCylinder()`, `CreateCone()`, etc.
+- **Intersection Testing**: Standalone ray-quadric intersection for testing
+
 ## Limitations and Considerations
 
 1. **Bounding Box**: Essential for unbounded surfaces. Without it, the quadric would extend infinitely.
@@ -191,7 +236,7 @@ quadrics[index] = createQuadric(
 
 3. **Performance**: Ray-quadric intersection requires solving a quadratic equation, which is more expensive than ray-sphere but cheaper than triangle meshes.
 
-4. **Maximum Number**: Currently defined as `#define NUM_QUADRICS 4`. Adjust as needed.
+4. **Maximum Number**: Currently defined as `MAX_QUADRICS = 8` in `QuadricManager.h`. Adjust as needed.
 
 ## References
 

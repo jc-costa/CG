@@ -1,0 +1,109 @@
+# ============================================================================
+# TEST POLYGON TRIANGULATION - Face Triangulation Test
+# ============================================================================
+#
+# PURPOSE:
+#   Tests the SceneManager's automatic triangulation of polygons with more
+#   than 3 vertices. OBJ format allows arbitrary polygons; the parser must
+#   convert them to triangles for rendering.
+#
+# TRIANGULATION METHOD:
+#   The SceneManager uses FAN TRIANGULATION:
+#
+#   For polygon with vertices [V0, V1, V2, V3, V4, ...]:
+#     Triangle 1: V0, V1, V2
+#     Triangle 2: V0, V2, V3
+#     Triangle 3: V0, V3, V4
+#     ...
+#
+#   Example for a quad (4 vertices):
+#
+#       V3 -------- V2
+#        |  \    /  |
+#        |    V0    |
+#        |  /    \  |
+#       V0 -------- V1
+#
+#     Creates: Triangle(V0,V1,V2), Triangle(V0,V2,V3)
+#
+# LIMITATION:
+#   Fan triangulation works correctly ONLY for CONVEX polygons.
+#   Concave polygons may produce incorrect results (self-intersecting
+#   triangles). This is a known limitation of simple fan triangulation.
+#
+# TEST CASES:
+#
+#   1. SQUARE (4 vertices)
+#      Vertices: 1-4
+#      Face: f 1 2 3 4
+#      Expected triangles: 2 (quad split into 2 triangles)
+#
+#      V3(0,1) ---- V2(1,1)
+#         |           |
+#         |           |
+#      V0(0,0) ---- V1(1,0)
+#
+#   2. PENTAGON (5 vertices)
+#      Vertices: 5-9
+#      Face: f 5 6 7 8 9
+#      Expected triangles: 3
+#
+#          V7
+#         /   \
+#       V8     V6
+#        |     |
+#       V9 --- V5
+#
+#   3. HEXAGON (6 vertices)
+#      Vertices: 10-15
+#      Face: f 10 11 12 13 14 15
+#      Expected triangles: 4
+#
+#        V12 --- V11
+#       /           \
+#     V13           V10
+#       \           /
+#        V14 --- V15
+#
+# TRIANGULATION FORMULA:
+#   For an N-vertex polygon:
+#   Number of triangles = N - 2
+#
+#   Total expected: 2 + 3 + 4 = 9 triangles
+#
+# ============================================================================
+
+mtllib ./quadric_materials.mtl
+
+# Square (4 vertices)
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 1.0 1.0 0.0
+v 0.0 1.0 0.0
+
+# Pentagon (5 vertices)
+v 2.0 0.0 0.0
+v 2.951 0.309 0.0
+v 2.588 1.0 0.0
+v 2.0 1.0 0.0
+v 1.412 0.691 0.0
+
+# Hexagon (6 vertices)
+v 4.0 0.0 0.0
+v 4.866 0.5 0.0
+v 4.866 1.5 0.0
+v 4.0 2.0 0.0
+v 3.134 1.5 0.0
+v 3.134 0.5 0.0
+
+usemtl diffuse_green
+
+# Square (should produce 2 triangles)
+f 1 2 3 4
+
+# Pentagon (should produce 3 triangles)
+f 5 6 7 8 9
+
+# Hexagon (should produce 4 triangles)
+f 10 11 12 13 14 15
+

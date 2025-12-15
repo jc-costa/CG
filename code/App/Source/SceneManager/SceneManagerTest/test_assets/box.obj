@@ -1,0 +1,88 @@
+# ============================================================================
+# BOX (CUBE) - Quadric Surface Test
+# ============================================================================
+#
+# DESCRIPTION:
+#   A unit cube centered at the origin. While technically not a quadric
+#   surface (it's a polyhedron), the box serves as a fundamental test case
+#   for the OBJ parser.
+#
+# GEOMETRY:
+#   - Dimensions: 1×1×1 unit cube
+#   - Center: Origin (0, 0, 0)
+#   - Bounds: -0.5 to +0.5 on each axis
+#   - Vertices: 8
+#   - Faces: 6 (each split into 2 triangles = 12 triangles total)
+#
+# OBJ FEATURES TESTED:
+#   - Vertex positions (v x y z)
+#   - Vertex normals (vn x y z)
+#   - Texture coordinates (vt u v)
+#   - Full face format (f v/vt/vn)
+#   - Material reference (mtllib, usemtl)
+#
+# MATHEMATICAL DEFINITION:
+#   A cube can be defined by the intersection of 6 half-spaces:
+#     -0.5 ≤ x ≤ 0.5
+#     -0.5 ≤ y ≤ 0.5
+#     -0.5 ≤ z ≤ 0.5
+#
+# EXPECTED RESULTS AFTER LOADING:
+#   - Triangle count: 12 (6 faces × 2 triangles per face)
+#   - All normals normalized (length ≈ 1.0)
+#   - Scene normalized to 6×6×6 bounding box
+#
+# ============================================================================
+
+mtllib ./quadric_materials.mtl
+
+# Vertices of the cube
+v -0.5 -0.5 -0.5
+v  0.5 -0.5 -0.5
+v  0.5  0.5 -0.5
+v -0.5  0.5 -0.5
+v -0.5 -0.5  0.5
+v  0.5 -0.5  0.5
+v  0.5  0.5  0.5
+v -0.5  0.5  0.5
+
+# Normals for each face direction
+vn  0.0  0.0 -1.0
+vn  0.0  0.0  1.0
+vn  0.0 -1.0  0.0
+vn  0.0  1.0  0.0
+vn -1.0  0.0  0.0
+vn  1.0  0.0  0.0
+
+# Texture coordinates (for completeness)
+vt 0.0 0.0
+vt 1.0 0.0
+vt 1.0 1.0
+vt 0.0 1.0
+
+usemtl diffuse_white
+
+# Front face (z = -0.5)
+f 1/1/1 2/2/1 3/3/1
+f 1/1/1 3/3/1 4/4/1
+
+# Back face (z = 0.5)
+f 5/1/2 7/3/2 6/2/2
+f 5/1/2 8/4/2 7/3/2
+
+# Bottom face (y = -0.5)
+f 1/1/3 5/2/3 6/3/3
+f 1/1/3 6/3/3 2/4/3
+
+# Top face (y = 0.5)
+f 4/1/4 3/2/4 7/3/4
+f 4/1/4 7/3/4 8/4/4
+
+# Left face (x = -0.5)
+f 1/1/5 4/2/5 8/3/5
+f 1/1/5 8/3/5 5/4/5
+
+# Right face (x = 0.5)
+f 2/1/6 6/2/6 7/3/6
+f 2/1/6 7/3/6 3/4/6
+

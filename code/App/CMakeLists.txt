@@ -8,6 +8,10 @@ set(SOURCES
     Source/Shader.cpp
     Source/Renderer.h
     Source/Renderer.cpp
+    Source/SceneManager/FileManager.h
+    Source/SceneManager/FileManager.cpp
+    Source/SceneManager/SceneManager.h
+    Source/SceneManager/SceneManager.cpp
     Source/Math/Vec3.h
     Source/Math/Vec3.cpp
     Source/Math/Ray.h
@@ -18,6 +22,8 @@ set(SOURCES
     Source/Math/MonteCarlo.cpp
     Source/Quadric/Quadric.h
     Source/Quadric/Quadric.cpp
+    Source/QuadricManager/QuadricManager.h
+    Source/QuadricManager/QuadricManager.cpp
     vendor/stb/stb_image.h
     vendor/stb/stb_image.cpp
 )
@@ -36,4 +42,9 @@ target_include_directories(App PRIVATE Source)
 # Copy all shaders to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Shaders/
+)
+
+# Copy assets (OBJ files, textures, etc.) to build directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets/
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/
 )

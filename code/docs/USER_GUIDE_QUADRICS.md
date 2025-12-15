@@ -2,13 +2,24 @@
 
 ## How to Edit Quadrics
 
-The system allows users to interactively input quadric coefficients during program execution.
+The system allows users to interactively input quadric coefficients during program execution using the **ImGui-based visual editor**.
 
 ### Editing Methods
 
-#### 1. Quick Editor (Alt + Number)
+#### 1. ImGui Visual Editor (Recommended)
 
-Press **Alt + [1-8]** to quickly edit a specific quadric:
+Press **Ctrl+Q** or **Q** to toggle the **Quadric Editor** window. This graphical interface provides:
+- **Quadric Selection**: Dropdown to select which quadric (0-7) to edit
+- **Coefficient Sliders**: Real-time adjustment of all 10 coefficients (A-J)
+- **Bounding Box Controls**: Visual min/max controls for AABB
+- **Material Selection**: Dropdown to choose from available materials
+- **Preset Buttons**: Quick-apply common quadric shapes (sphere, cylinder, cone, etc.)
+
+The ImGui editor provides instant visual feedback as you adjust parameters.
+
+#### 2. Quick Editor (Alt + Number)
+
+Press **Alt + [1-8]** to quickly select a specific quadric in the editor:
 
 - **Alt+1**: Edit Quadric 0 (Default ellipsoid)
 - **Alt+2**: Edit Quadric 1 (Default hyperboloid)
@@ -16,18 +27,18 @@ Press **Alt + [1-8]** to quickly edit a specific quadric:
 - **Alt+4**: Edit Quadric 3 (Default cylinder)
 - **Alt+5 to Alt+8**: Edit Quadrics 4-7 (initially empty)
 
-The editor will open in the terminal where you can enter the coefficients.
-
-#### 2. Editor Menu (Ctrl+Q)
-
-Press **Ctrl+Q** to open the quadric editor menu with options:
-- Choose which quadric to edit
-- View instructions
-- Add new quadric
-
 #### 3. List Quadrics (Ctrl+L)
 
-Press **Ctrl+L** to list all active quadrics with their coefficients.
+Press **Ctrl+L** to list all active quadrics with their coefficients in the console.
+
+### Scene Selection
+
+Press **S** to cycle through available scenes:
+- **Cornell Box**: Classic test scene with box geometry
+- **Procedural Scene**: Programmatically generated shapes
+- **Quadric Meshes**: Displays quadric surfaces with sky environment lighting
+
+**Note**: The sky environment is automatically shown when viewing quadric meshes, and hidden for Cornell Box and procedural scenes to provide appropriate lighting for each scene type.
 
 ### Editing Process
 
@@ -224,9 +235,10 @@ If the quadric doesn't appear:
 | **+ / -** | Adjust exposure |
 | **↑ / ↓** | Adjust max bounces |
 | **F** | Toggle depth of field |
-| **Ctrl+Q** | Quadric editor menu |
-| **Ctrl+L** | List all quadrics |
-| **Alt+[1-8]** | Edit quadric N |
+| **S** | Cycle through scenes (Cornell Box / Procedural / Quadric Meshes) |
+| **Ctrl+Q** or **Q** | Toggle ImGui quadric editor |
+| **Ctrl+L** | List all quadrics in console |
+| **Alt+[1-8]** | Select quadric N in editor |
 | **ESC** | Quit |
 
 ## Saving Your Quadrics
@@ -235,10 +247,22 @@ Currently, quadrics are configured at runtime and are not saved to file. To make
 
 1. After creating the desired quadric, use **Ctrl+L** to view the coefficients
 2. Copy the values
-3. (Optional) Add them to the code in `Main.cpp` in the `InitializeDefaultQuadrics()` function
+3. (Optional) Add them to the code in `QuadricManager::InitializeDefaults()` in `Source/QuadricManager/QuadricManager.cpp`
+
+## Architecture
+
+The quadric system is managed by the `QuadricManager` class located in `Source/QuadricManager/`:
+
+- **QuadricManager.h**: Defines the `Quadric` struct and `QuadricManager` class
+- **QuadricManager.cpp**: Implements the ImGui editor and shader upload functionality
+
+The `QuadricManager` handles:
+- Default quadric initialization
+- ImGui-based visual editing
+- Uploading quadric uniforms to the path tracing shader
 
 ## Limitations
 
-- Maximum of 8 simultaneous quadrics (configurable in `MAX_QUADRICS`)
+- Maximum of 8 simultaneous quadrics (defined as `MAX_QUADRICS` in QuadricManager)
 - Quadrics are always centered or positioned via linear terms G, H, I
 - For more complex transformations (rotation), modify coefficients D, E, F

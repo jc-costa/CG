@@ -1,4 +1,11 @@
-# Usage Guide - Quadric Surfaces
+# Quadric Surfaces Library
+
+This directory contains the standalone quadric surface implementation for CPU-side testing and intersection calculations.
+
+## Related Components
+
+- **QuadricManager** (`../QuadricManager/`): Runtime quadric management with ImGui editor
+- **PathTrace.glsl** (`../../Shaders/PathTrace/`): GPU-side quadric intersection in the shader
 
 ## How to Compile and Test
 
@@ -178,25 +185,39 @@ Automated tests verify:
 
 ## Integration with Path Tracer
 
-To integrate quadrics into the main path tracer:
+### Using QuadricManager (Recommended)
 
-1. Add `#include "Quadric/Quadric.h"` to your code
-2. Create desired quadrics
-3. Use the `Intersect()` method in the ray tracing loop
-4. Use the returned normal for lighting calculations
+The `QuadricManager` class provides a higher-level interface for managing quadrics in the path tracer:
 
-Example:
 ```cpp
+#include "QuadricManager/QuadricManager.h"
+
+QuadricManager quadricManager;
+quadricManager.InitializeDefaults();  // Load default quadrics
+
+// In render loop:
+if (quadricManager.RenderEditor()) {
+    // Quadric was modified, reset accumulation
+}
+quadricManager.UploadToShader(pathTraceShader);
+```
+
+### Using Quadric Library Directly (For Testing)
+
+For CPU-side testing and standalone ray intersection:
+
+```cpp
+#include "Quadric/Quadric.h"
+
 Quadric::QuadricSurface sphere = Quadric::QuadricSurface::CreateSphere(2.0f);
 
-// In ray tracing loop:
+// Ray intersection test:
 Quadric::IntersectionResult hit = sphere.Intersect(rayOrigin, rayDirection);
 if (hit.Hit && hit.Distance < closestDistance)
 {
     closestDistance = hit.Distance;
     hitPoint = hit.Point;
     hitNormal = hit.Normal;
-    // ... continue with lighting calculations
 }
 ```
 

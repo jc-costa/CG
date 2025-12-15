@@ -23,13 +23,15 @@
 
 #include "Shader.h"
 #include "Renderer.h"
+#include "SceneManager/SceneManager.h"
+#include "QuadricManager/QuadricManager.h"
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-static constexpr int INITIAL_WIDTH = 1920;
-static constexpr int INITIAL_HEIGHT = 1080;
-static constexpr int MAX_BOUNCES = 8;
+static constexpr int INITIAL_WIDTH = 1080;
+static constexpr int INITIAL_HEIGHT = 600;
+static constexpr int MAX_BOUNCES = 16;
 static constexpr float CAMERA_SPEED = 3.0f;
 static constexpr float MOUSE_SENSITIVITY = 0.002f;
 
@@ -164,24 +166,9 @@ struct Camera
 };
 
 // ============================================================================
-// QUADRIC SYSTEM
+// QUADRIC MANAGER
 // ============================================================================
-struct Quadric
-{
-	float A, B, C;      // x², y², z² coefficients
-	float D, E, F;      // xy, xz, yz cross terms
-	float G, H, I;      // x, y, z linear terms
-	float J;            // constant term
-	glm::vec3 bboxMin;  // Bounding box minimum
-	glm::vec3 bboxMax;  // Bounding box maximum
-	int materialIndex;
-};
-
-static constexpr int MAX_QUADRICS = 8;
-static Quadric s_Quadrics[MAX_QUADRICS];
-static int s_NumQuadrics = 0;
-static int s_SelectedQuadric = 0;
-static bool s_ShowQuadricEditor = false;
+static QuadricManager s_QuadricManager;
 static bool s_ShowHelp = true;
 
 // ============================================================================
@@ -206,8 +193,36 @@ static bool s_ResetAccumulation = true;
 static int s_Width = INITIAL_WIDTH;
 static int s_Height = INITIAL_HEIGHT;
 static int s_MaxBounces = MAX_BOUNCES;
+static int s_SceneIndex = 0;
+static constexpr int NUM_SCENES = 4;
+static SceneManager s_SceneManager;
+static bool s_UseOBJScene = false;
+static bool s_UseCornellBoxScene = false;
 
-static std::filesystem::path s_ShaderDir;
+// Quadric mesh files for cycling with 'M' key
+static const std::vector<std::string> s_QuadricMeshFiles = {
+	"assets/box.obj",                         // 0: Unit Cube
+	"assets/sphere.obj",                      // 1: Icosphere
+	"assets/cylinder.obj",                    // 2: Cylinder
+	"assets/cone.obj",                        // 3: Cone
+	"assets/ellipsoid.obj",                   // 4: Ellipsoid
+	"assets/elliptic_paraboloid.obj",         // 5: Elliptic Paraboloid
+	"assets/hyperbolic_paraboloid.obj",       // 6: Hyperbolic Paraboloid
+	"assets/hyperboloid_one_sheet.obj",       // 7: Hyperboloid One Sheet
+	"assets/hyperboloid_two_sheets.obj"       // 8: Hyperboloid Two Sheets
+};
+static const std::vector<std::string> s_QuadricMeshNames = {
+	"Box (Cube)",
+	"Sphere (Icosphere)",
+	"Cylinder",
+	"Cone",
+	"Ellipsoid",
+	"Elliptic Paraboloid (Bowl)",
+	"Hyperbolic Paraboloid (Saddle)",
+	"Hyperboloid of One Sheet",
+	"Hyperboloid of Two Sheets"
+};
+static int s_CurrentMeshIndex = -1;  // Start at -1 so first press loads index 0
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -239,41 +254,6 @@ static std::filesystem::path GetShaderPath(const std::filesystem::path& shaderNa
 	return shaderPath;
 }
 
-// ============================================================================
-// QUADRIC MANAGEMENT
-// ============================================================================
-static void InitializeDefaultQuadrics()
-{
-	// Esfera teste usando quádrica (x² + y² + z² = r²)
-	// Posição: lado direito, material dourado
-	// Centro em (2.0, -2.0, 0.0), raio 0.6
-	// Transladar: substituir x→(x-2), y→(y+2), z→z
-	// (x-2)² + (y+2)² + z² = 0.36
-	// x² - 4x + 4 + y² + 4y + 4 + z² = 0.36
-	// x² + y² + z² - 4x + 4y + 7.64 = 0
-	s_Quadrics[0] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, -4.0f, 4.0f, 0.0f, 7.64f,
-	                 glm::vec3(1.4f, -2.6f, -0.6f), glm::vec3(2.6f, -1.4f, 0.6f), 4};
-	
-	// Elipsoide - Esquerda atrás (x²/a² + y²/b² + z²/c² = 1)
-	// a=0.5, b=0.8, c=0.4, centro em (-2.0, -2.0, -2.0)
-	// Expandir: x²/0.25 + y²/0.64 + z²/0.16 = 1
-	// Multiplicar por 0.16: 0.64x² + 0.25y² + z² = 0.16
-	// Transladar (x→x+2, y→y+2, z→z+2):
-	// 0.64(x+2)² + 0.25(y+2)² + (z+2)² = 0.16
-	// 0.64x² + 2.56x + 2.56 + 0.25y² + y + 1 + z² + 4z + 4 = 0.16
-	// 0.64x² + 0.25y² + z² + 2.56x + y + 4z + 7.4 = 0
-	s_Quadrics[1] = {0.64f, 0.25f, 1.0f, 0.0f, 0.0f, 0.0f, 2.56f, 1.0f, 4.0f, 7.4f,
-	                 glm::vec3(-2.5f, -2.8f, -2.4f), glm::vec3(-1.5f, -1.2f, -1.6f), 8};
-	
-	s_NumQuadrics = 2;
-	
-	std::cout << "\n========================================" << std::endl;
-	std::cout << "QUADRICS LOADED:" << std::endl;
-	std::cout << "1. Sphere (gold) - right side" << std::endl;
-	std::cout << "2. Ellipsoid (white) - back left" << std::endl;
-	std::cout << "Press G to open editor and modify!" << std::endl;
-	std::cout << "========================================\n" << std::endl;
-}
 
 // ============================================================================
 // IMGUI INTERFACE
@@ -290,10 +270,27 @@ static void RenderImGui()
 		ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
 		ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiCond_FirstUseEver);
 		ImGui::Begin("Help & Controls", &s_ShowHelp);
+
+		ImGui::Separator();
+		ImGui::Text("Scene/Mesh:");
+		ImGui::BulletText("I: Procedural scenes");
+		ImGui::BulletText("O: Cornell Box");
+		ImGui::BulletText("M/Shift+M: Quadric meshes");
+
+
+		if (s_UseOBJScene == false)
+		{
+			ImGui::Separator();
+			ImGui::Text("Quadrics:");
+			ImGui::BulletText("G: Toggle Quadric Editor");
+		}
+
+        ImGui::Separator();
 		ImGui::Text("Camera Controls:");
 		ImGui::BulletText("Right Mouse + WASD: Move");
 		ImGui::BulletText("Q/E: Up/Down");
 		ImGui::BulletText("Shift: Move faster");
+
 		ImGui::Separator();
 		ImGui::Text("Rendering:");
 		ImGui::BulletText("R: Reload shaders");
@@ -301,165 +298,14 @@ static void RenderImGui()
 		ImGui::BulletText("+/-: Exposure");
 		ImGui::BulletText("Up/Down: Bounces");
 		ImGui::BulletText("F: Toggle DOF");
-		ImGui::Separator();
-		ImGui::Text("Quadrics:");
-		ImGui::BulletText("G: Toggle Quadric Editor");
+
 		ImGui::End();
 	}
 	
-	// Quadric editor window
-	if (s_ShowQuadricEditor)
+	// Quadric editor window (via QuadricManager)
+	if (s_QuadricManager.RenderEditor())
 	{
-		ImGui::SetNextWindowPos(ImVec2(10, 220), ImGuiCond_FirstUseEver);
-		ImGui::SetNextWindowSize(ImVec2(450, 600), ImGuiCond_FirstUseEver);
-		ImGui::Begin("Quadric Surface Editor", &s_ShowQuadricEditor);
-		
-		ImGui::Text("Equation: Ax² + By² + Cz² + Dxy + Exz + Fyz + Gx + Hy + Iz + J = 0");
-		ImGui::Separator();
-		
-		// Quadric selector
-		ImGui::Text("Select Quadric:");
-		ImGui::PushItemWidth(100);
-		if (ImGui::InputInt("##quadric_index", &s_SelectedQuadric))
-		{
-			s_SelectedQuadric = glm::clamp(s_SelectedQuadric, 0, MAX_QUADRICS - 1);
-			if (s_SelectedQuadric >= s_NumQuadrics)
-				s_NumQuadrics = s_SelectedQuadric + 1;
-		}
-		ImGui::PopItemWidth();
-		ImGui::SameLine();
-		ImGui::Text("(0-%d) | Active: %d", MAX_QUADRICS - 1, s_NumQuadrics);
-		
-		ImGui::Separator();
-		
-		Quadric& q = s_Quadrics[s_SelectedQuadric];
-		bool changed = false;
-		
-		// Quadratic coefficients
-		ImGui::Text("Quadratic Terms:");
-		ImGui::PushItemWidth(120);
-		changed |= ImGui::DragFloat("A (x²)", &q.A, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::SameLine();
-		changed |= ImGui::DragFloat("B (y²)", &q.B, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::SameLine();
-		changed |= ImGui::DragFloat("C (z²)", &q.C, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::PopItemWidth();
-		
-		// Cross terms
-		ImGui::Text("Cross Terms:");
-		ImGui::PushItemWidth(120);
-		changed |= ImGui::DragFloat("D (xy)", &q.D, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::SameLine();
-		changed |= ImGui::DragFloat("E (xz)", &q.E, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::SameLine();
-		changed |= ImGui::DragFloat("F (yz)", &q.F, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::PopItemWidth();
-		
-		// Linear terms
-		ImGui::Text("Linear Terms:");
-		ImGui::PushItemWidth(120);
-		changed |= ImGui::DragFloat("G (x)", &q.G, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::SameLine();
-		changed |= ImGui::DragFloat("H (y)", &q.H, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::SameLine();
-		changed |= ImGui::DragFloat("I (z)", &q.I, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::PopItemWidth();
-		
-		// Constant
-		ImGui::Text("Constant:");
-		ImGui::PushItemWidth(120);
-		changed |= ImGui::DragFloat("J", &q.J, 0.01f, -10.0f, 10.0f, "%.3f");
-		ImGui::PopItemWidth();
-		
-		ImGui::Separator();
-		
-		// Bounding box
-		ImGui::Text("Bounding Box:");
-		ImGui::PushItemWidth(100);
-		changed |= ImGui::DragFloat3("Min", &q.bboxMin.x, 0.1f, -20.0f, 20.0f, "%.2f");
-		changed |= ImGui::DragFloat3("Max", &q.bboxMax.x, 0.1f, -20.0f, 20.0f, "%.2f");
-		ImGui::PopItemWidth();
-		
-		ImGui::Separator();
-		
-		// Material
-		ImGui::Text("Material:");
-		const char* materials[] = {
-			"0: White Diffuse", "1: Red Diffuse", "2: Green Diffuse",
-			"3: Chrome", "4: Gold", "5: Light", "6: Glass",
-			"7: Blue Glossy", "8: Rough White", "9: Bronze"
-		};
-		ImGui::PushItemWidth(200);
-		changed |= ImGui::Combo("##material", &q.materialIndex, materials, 10);
-		ImGui::PopItemWidth();
-		
-		ImGui::Separator();
-		
-		// Presets
-		ImGui::Text("Quick Presets:");
-		
-		// BIG VISIBLE TEST SPHERE
-		if (ImGui::Button("TEST SPHERE (EMISSIVE)"))
-		{
-			q = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, 0.0f,
-			     glm::vec3(-3.0f, -3.0f, -5.0f), glm::vec3(3.0f, 3.0f, 1.0f), 5};
-			changed = true;
-		}
-		ImGui::SameLine();
-		
-		if (ImGui::Button("Sphere (r=1)"))
-		{
-			q = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f,
-			     glm::vec3(-1.0f), glm::vec3(1.0f), 6};
-			changed = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Cylinder (r=0.6)"))
-		{
-			q = {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -0.36f,
-			     glm::vec3(-0.6f, -0.6f, -2.0f), glm::vec3(0.6f, 0.6f, 2.0f), 3};
-			changed = true;
-		}
-		if (ImGui::Button("Cone"))
-		{
-			q = {1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-			     glm::vec3(-2.0f, -2.0f, -3.0f), glm::vec3(2.0f, 2.0f, 3.0f), 3};
-			changed = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Paraboloid"))
-		{
-			q = {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f,
-			     glm::vec3(-1.5f, -1.5f, 0.0f), glm::vec3(1.5f, 1.5f, 4.5f), 4};
-			changed = true;
-		}
-		if (ImGui::Button("Ellipsoid"))
-		{
-			q = {1.5625f, 0.6944f, 2.7778f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f,
-			     glm::vec3(-0.8f, -1.2f, -0.6f), glm::vec3(0.8f, 1.2f, 0.6f), 8};
-			changed = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Hyperboloid"))
-		{
-			q = {4.0f, 4.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f,
-			     glm::vec3(-1.0f, -1.0f, -2.0f), glm::vec3(1.0f, 1.0f, 2.0f), 7};
-			changed = true;
-		}
-		
-		ImGui::Separator();
-		
-		// Copy equation
-		ImGui::Text("Equation:");
-		ImGui::TextWrapped("%.3fx² + %.3fy² + %.3fz² + %.3fxy + %.3fxz + %.3fyz + %.3fx + %.3fy + %.3fz + %.3f = 0",
-		                   q.A, q.B, q.C, q.D, q.E, q.F, q.G, q.H, q.I, q.J);
-		
-		if (changed)
-		{
-			s_ResetAccumulation = true;
-		}
-		
-		ImGui::End();
+		s_ResetAccumulation = true;
 	}
 	
 	// Stats window
@@ -468,7 +314,7 @@ static void RenderImGui()
 	ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
 	ImGui::Text("Frame: %d", s_FrameIndex);
 	ImGui::Text("Bounces: %d", s_MaxBounces);
-	ImGui::Text("Quadrics: %d/%d", s_NumQuadrics, MAX_QUADRICS);
+	ImGui::Text("Quadrics: %d/%d", s_QuadricManager.GetNumQuadrics(), QuadricManager::MAX_QUADRICS);
 	ImGui::Text("Exposure: %.2f", s_Camera.Exposure);
 	ImGui::End();
 	
@@ -519,7 +365,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 			std::cerr << "Shader reload failed!" << std::endl;
 		}
 	}
-	
+
 	// Tonemapper cycling
 	if (key == GLFW_KEY_T && action == GLFW_PRESS)
 	{
@@ -527,7 +373,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		const char* names[] = {"None", "Reinhard", "ACES", "Uncharted2"};
 		std::cout << "Tonemapper: " << names[s_Camera.Tonemapper] << std::endl;
 	}
-	
+
 	// Exposure controls
 	if (key == GLFW_KEY_EQUAL && action == GLFW_PRESS)
 	{
@@ -539,7 +385,7 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		s_Camera.Exposure /= 1.2f;
 		std::cout << "Exposure: " << s_Camera.Exposure << std::endl;
 	}
-	
+
 	// Bounce count
 	if (key == GLFW_KEY_UP && action == GLFW_PRESS)
 	{
@@ -547,13 +393,14 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		s_ResetAccumulation = true;
 		std::cout << "Max bounces: " << s_MaxBounces << std::endl;
 	}
+
 	if (key == GLFW_KEY_DOWN && action == GLFW_PRESS)
 	{
 		s_MaxBounces = std::max(s_MaxBounces - 1, 1);
 		s_ResetAccumulation = true;
 		std::cout << "Max bounces: " << s_MaxBounces << std::endl;
 	}
-	
+
 	// DOF controls
 	if (key == GLFW_KEY_F && action == GLFW_PRESS)
 	{
@@ -561,18 +408,143 @@ static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, i
 		s_ResetAccumulation = true;
 		std::cout << "DOF: " << (s_Camera.Aperture > 0 ? "ON" : "OFF") << std::endl;
 	}
-	
+
 	// Toggle Quadric Editor (ImGui)
 	if (key == GLFW_KEY_G && action == GLFW_PRESS)
 	{
-		s_ShowQuadricEditor = !s_ShowQuadricEditor;
-		std::cout << "Quadric Editor: " << (s_ShowQuadricEditor ? "ON" : "OFF") << std::endl;
+		s_QuadricManager.ToggleEditor();
+		std::cout << "Quadric Editor: " << (s_QuadricManager.IsEditorVisible() ? "ON" : "OFF") << std::endl;
 	}
 	
 	// Toggle Help
 	if (key == GLFW_KEY_H && action == GLFW_PRESS)
 	{
 		s_ShowHelp = !s_ShowHelp;
+    }
+
+	// Scene switching (procedural scenes)
+	if (key == GLFW_KEY_I && action == GLFW_PRESS &&
+		glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) != GLFW_PRESS)
+	{
+		s_UseOBJScene = false;  // Switch back to procedural
+		s_UseCornellBoxScene = false; // Not using Cornell Box OBJ
+		s_SceneIndex = (s_SceneIndex + 1) % NUM_SCENES;
+		s_ResetAccumulation = true;
+		
+		// Reset camera to default position for procedural scenes
+		s_Camera.Position = glm::vec3(0.0f, 0.0f, 8.0f);
+		s_Camera.Forward = glm::vec3(0.0f, 0.0f, -1.0f);
+		s_Camera.Up = glm::vec3(0.0f, 1.0f, 0.0f);
+		s_Camera.RecalculateView();
+		
+		const char* sceneNames[] = {"Cornell Box Showcase", "Simple Spheres", "Glass & Metal Study", "Metals Lineup"};
+		std::cout << "Scene: " << sceneNames[s_SceneIndex] << " (" << s_SceneIndex << "/" << (NUM_SCENES - 1) << ")" << std::endl;
+	}
+	
+	// Load Cornell Box OBJ scene (O key)
+	if (key == GLFW_KEY_O && action == GLFW_PRESS)
+	{
+		std::filesystem::path objPath = GetShaderPath("assets/cornell_box.obj");
+		std::cout << "Loading Cornell Box: " << objPath.string() << std::endl;
+		
+		s_SceneManager.Clear();
+		if (s_SceneManager.LoadOBJ(objPath))
+		{
+			if (s_SceneManager.UploadToGPU())
+			{
+				s_UseOBJScene = true;
+				s_UseCornellBoxScene = true;
+				s_ResetAccumulation = true;
+				
+				// Use camera from OBJ if available
+				const SceneData& scene = s_SceneManager.GetSceneData();
+				if (scene.HasCamera)
+				{
+					s_Camera.Position = scene.CameraPosition;
+					glm::vec3 dir = glm::normalize(scene.CameraTarget - scene.CameraPosition);
+					s_Camera.Forward = dir;
+					s_Camera.Up = scene.CameraUp;
+					s_Camera.RecalculateView();
+				}
+				
+				std::cout << "Cornell Box loaded: " << s_SceneManager.GetTriangleCount() 
+						  << " triangles" << std::endl;
+			}
+		}
+		else
+		{
+			std::cerr << "Failed to load Cornell Box" << std::endl;
+		}
+	}
+	
+	// Cycle through quadric mesh OBJ files (M = next, Shift+M = previous)
+	if (key == GLFW_KEY_M && action == GLFW_PRESS)
+	{
+		int numMeshes = static_cast<int>(s_QuadricMeshFiles.size());
+		
+		// Shift+M = previous mesh, M = next mesh
+		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ||
+			glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+		{
+			s_CurrentMeshIndex = (s_CurrentMeshIndex - 1 + numMeshes) % numMeshes;
+		}
+		else
+		{
+			s_CurrentMeshIndex = (s_CurrentMeshIndex + 1) % numMeshes;
+		}
+		
+		std::filesystem::path objPath = GetShaderPath(s_QuadricMeshFiles[s_CurrentMeshIndex]);
+		std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" << std::endl;
+		std::cout << "[Quadric " << s_CurrentMeshIndex << "/" << (numMeshes - 1) << "] "
+				  << s_QuadricMeshNames[s_CurrentMeshIndex] << std::endl;
+		std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" << std::endl;
+		
+		s_SceneManager.Clear();
+		bool loaded = false;
+		
+		// Try primary path
+		if (s_SceneManager.LoadOBJ(objPath))
+		{
+			loaded = true;
+		}
+		else
+		{
+			// Try alternative paths for different working directories
+			std::vector<std::filesystem::path> altPaths = {
+				std::filesystem::path("..") / "App" / s_QuadricMeshFiles[s_CurrentMeshIndex],
+				std::filesystem::path("App") / s_QuadricMeshFiles[s_CurrentMeshIndex],
+				std::filesystem::current_path() / s_QuadricMeshFiles[s_CurrentMeshIndex]
+			};
+			
+			for (const auto& altPath : altPaths)
+			{
+				if (std::filesystem::exists(altPath) && s_SceneManager.LoadOBJ(altPath))
+				{
+					loaded = true;
+					break;
+				}
+			}
+		}
+		
+		if (loaded && s_SceneManager.UploadToGPU())
+		{
+			s_UseOBJScene = true;
+			s_UseCornellBoxScene = false;
+			s_ResetAccumulation = true;
+			
+			// Default camera for quadric surfaces - positioned to see the whole mesh
+			s_Camera.Position = glm::vec3(0.0f, 2.0f, 10.0f);
+			s_Camera.Forward = glm::normalize(glm::vec3(0.0f, -0.2f, -1.0f));
+			s_Camera.Up = glm::vec3(0.0f, 1.0f, 0.0f);
+			s_Camera.RecalculateView();
+			
+			std::cout << "Triangles: " << s_SceneManager.GetTriangleCount() 
+					  << " | Materials: " << s_SceneManager.GetMaterialCount() << std::endl;
+		}
+		else
+		{
+			std::cerr << "Failed to load mesh file" << std::endl;
+		}
 	}
 }
 
@@ -675,28 +647,28 @@ static void RenderPathTrace()
 	glUniform1f(glGetUniformLocation(s_PathTraceShader, "uTime"), (float)glfwGetTime());
 	glUniform1f(glGetUniformLocation(s_PathTraceShader, "uAperture"), s_Camera.Aperture);
 	glUniform1f(glGetUniformLocation(s_PathTraceShader, "uFocusDistance"), s_Camera.FocusDistance);
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uSceneIndex"), s_SceneIndex);
 	
-	// Pass quadrics to shader
-	GLint uNumQuadricsLoc = glGetUniformLocation(s_PathTraceShader, "uNumQuadrics");
-	glUniform1i(uNumQuadricsLoc, s_NumQuadrics);
-	
-	// Send quadric data as separate uniform arrays
-	for (int i = 0; i < s_NumQuadrics && i < MAX_QUADRICS; i++)
+	// OBJ scene uniforms
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uUseOBJScene"), s_UseOBJScene ? 1 : 0);
+
+
+	// CornellBox scene uniforms
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uUseCornellBoxScene"), s_UseCornellBoxScene ? 1 : 0);
+
+	// Show skybox when a quadric mesh is loaded via M/Shift+M
+	glUniform1i(glGetUniformLocation(s_PathTraceShader, "uShowSkybox"), s_CurrentMeshIndex >= 0 && s_UseCornellBoxScene == 0 ? 1 : 0);
+	if (s_UseOBJScene && s_SceneManager.GetTriangleCount() > 0)
 	{
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_A[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].A);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_B[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].B);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_C[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].C);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_D[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].D);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_E[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].E);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_F[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].F);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_G[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].G);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_H[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].H);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_I[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].I);
-		glUniform1f(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_J[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].J);
-		glUniform3fv(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_bboxMin[" + std::to_string(i) + "]").c_str()), 1, glm::value_ptr(s_Quadrics[i].bboxMin));
-		glUniform3fv(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_bboxMax[" + std::to_string(i) + "]").c_str()), 1, glm::value_ptr(s_Quadrics[i].bboxMax));
-		glUniform1i(glGetUniformLocation(s_PathTraceShader, ("uQuadrics_materialIndex[" + std::to_string(i) + "]").c_str()), s_Quadrics[i].materialIndex);
+		s_SceneManager.BindTextures(s_PathTraceShader);
 	}
+	else
+	{
+		glUniform1i(glGetUniformLocation(s_PathTraceShader, "uNumTriangles"), 0);
+	}
+	
+	// Pass quadrics to shader via QuadricManager
+	s_QuadricManager.UploadToShader(s_PathTraceShader);
 	
 	glBindVertexArray(s_VAO);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -812,7 +784,7 @@ int main()
 	s_Camera.RecalculateView();
 	
 	// Initialize quadrics with defaults
-	InitializeDefaultQuadrics();
+	s_QuadricManager.InitializeDefaults();
 	
 	// Initialize resources
 	if (!InitializeShaders())
@@ -826,7 +798,12 @@ int main()
 		glfwTerminate();
 		return EXIT_FAILURE;
 	}
-	
+
+	std::cout << "\n=== SCENE CONTROLS ===" << std::endl;
+	std::cout << "I: Procedural scenes" << std::endl;
+	std::cout << "O: Cornell Box" << std::endl;
+	std::cout << "M: Quadric meshes (Shift+M: previous)" << std::endl;
+
 	std::cout << "\n=== CONTROLS ===" << std::endl;
 	std::cout << "Right Mouse + WASD: Move camera" << std::endl;
 	std::cout << "Q/E: Move up/down" << std::endl;

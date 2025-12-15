@@ -48,6 +48,9 @@ make clean  # Clean build files
 | **+ / -** | Adjust exposure |
 | **↑ / ↓** | Adjust max bounces |
 | **F** | Toggle depth of field |
+| **I** | Cycle scenes (Cornell Box / Procedural / Quadric Meshes) |
+| **Ctrl+Q** | Toggle quadric editor (ImGui) |
+| **Alt+[1-8]** | Select quadric N in editor |
 | **ESC** | Quit |
 
 ## Architecture
@@ -82,16 +85,20 @@ make clean  # Clean build files
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Project Overview](docs/00-PROJECT-OVERVIEW.md) | High-level overview and technology stack |
-| [Build Instructions](docs/01-BUILD-INSTRUCTIONS.md) | Complete build instructions for all platforms |
-| [OpenGL Compatibility](docs/02-OPENGL-COMPATIBILITY.md) | OpenGL version requirements and platform limitations |
-| [Issues and Fixes](docs/03-ISSUES-AND-FIXES.md) | Known issues and their solutions |
-| [Development Session](docs/04-DEVELOPMENT-SESSION.md) | Development history and lessons learned |
-| [File Structure](docs/05-FILE-STRUCTURE.md) | Project file structure documentation |
-| [**Path Tracing Algorithm**](docs/06-PATHTRACING-ALGORITHM.md) | Comprehensive guide to the GPU path tracing implementation |
-| [**Accumulation Bug Analysis**](docs/07-ACCUMULATION-BUG-ANALYSIS.md) | Detailed analysis of the ping-pong buffer bug and fix |
+| Document                                                              | Description                                                 |
+|-----------------------------------------------------------------------|-------------------------------------------------------------|
+| [Project Overview](docs/00-PROJECT-OVERVIEW.md)                       | High-level overview and technology stack                    |
+| [Build Instructions](docs/01-BUILD-INSTRUCTIONS.md)                   | Complete build instructions for all platforms               |
+| [OpenGL Compatibility](docs/02-OPENGL-COMPATIBILITY.md)               | OpenGL version requirements and platform limitations        |
+| [Issues and Fixes](docs/03-ISSUES-AND-FIXES.md)                       | Known issues and their solutions                            |
+| [Development Session](docs/04-DEVELOPMENT-SESSION.md)                 | Development history and lessons learned                     |
+| [File Structure](docs/05-FILE-STRUCTURE.md)                           | Project file structure documentation                        |
+| [Shaders Reference](docs/SHADERS-REFERENCE.md)                        | In-depth explanation of shader code and algorithms          |
+| [**Path Tracing Algorithm**](docs/06-PATHTRACING-ALGORITHM.md)        | Comprehensive guide to the GPU path tracing implementation  |
+| [**Accumulation Bug Analysis**](docs/07-ACCUMULATION-BUG-ANALYSIS.md) | Detailed analysis of the ping-pong buffer bug and fix       |
+| [Quadrics User Guide](docs/USER_GUIDE_QUADRICS.md)                    | Instructions for using quadric surfaces with ImGui editor   |
+| [Quadrics Theory](docs/QUADRICS.md)                                   | Mathematical background on quadric surfaces                 |
+| [Scene Loading](docs/OBJ_SCENE_LOADING.md)                            | Details on OBJ scene representation and loading process     |
 
 ## Building
 
