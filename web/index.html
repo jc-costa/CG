@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Path Tracer Web - Computer Graphics 2025.2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .subtitle {
+            font-size: 12px;
+            text-align: center;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+        
+        #canvas {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            cursor: crosshair;
+            background: #000;
+        }
+        
+        .info-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+            max-width: 800px;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+        }
+        
+        .section h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #a8daff;
+            border-bottom: 1px solid rgba(168, 218, 255, 0.3);
+            padding-bottom: 5px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            opacity: 0.9;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #764ba2;
+            transform: scale(1.2);
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+        
+        .stat-item {
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #a8daff;
+        }
+        
+        .value-display {
+            display: inline-block;
+            float: right;
+            color: #a8daff;
+            font-weight: 600;
+        }
+        
+        .quadric-editor {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .coefficients-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .coeff-input {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .coeff-input label {
+            font-size: 11px;
+            margin-bottom: 3px;
+        }
+        
+        .coeff-input input {
+            padding: 6px;
+            font-size: 12px;
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        
+        .preset-buttons button {
+            padding: 6px;
+            font-size: 11px;
+            margin-bottom: 0;
+        }
+        
+        .controls-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+        
+        .controls-info kbd {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>🎨 Path Tracer Web</h1>
+            <div class="subtitle">Computer Graphics 2025.2</div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="fps">0</div>
+                    <div>FPS</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="samples">0</div>
+                    <div>Samples</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>🎬 Cena</h3>
+                <div class="control-group">
+                    <label>Selecionar Cena</label>
+                    <select id="sceneSelect">
+                        <option value="0">Cornell Box Showcase</option>
+                        <option value="1">Simple Spheres</option>
+                        <option value="2">Glass & Metal Study</option>
+                        <option value="3">Metals Lineup</option>
+                        <option value="4">Superfícies Quádricas</option>
+                    </select>
+                </div>
+                <button id="resetBtn">🔄 Resetar Acumulação</button>
+            </div>
+            
+            <div class="section">
+                <h3>🎥 Câmera</h3>
+                <div class="control-group">
+                    <label>FOV: <span class="value-display" id="fovValue">60°</span></label>
+                    <input type="range" id="fovSlider" min="30" max="120" value="60">
+                </div>
+                <div class="control-group">
+                    <label>Exposure: <span class="value-display" id="exposureValue">1.0</span></label>
+                    <input type="range" id="exposureSlider" min="0.1" max="5" step="0.1" value="1.0">
+                </div>
+                <div class="control-group">
+                    <label>Depth of Field: <span class="value-display" id="dofValue">0.0</span></label>
+                    <input type="range" id="dofSlider" min="0" max="0.5" step="0.01" value="0">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>⚙️ Renderização</h3>
+                <div class="control-group">
+                    <label>Max Bounces: <span class="value-display" id="bouncesValue">8</span></label>
+                    <input type="range" id="bouncesSlider" min="1" max="16" value="8">
+                </div>
+                <div class="control-group">
+                    <label>Qualidade de Imagem</label>
+                    <select id="qualitySelect">
+                        <option value="0.5">Rápido (50%)</option>
+                        <option value="0.75">Médio (75%)</option>
+                        <option value="1.0" selected>Alto (100%)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>🔵 Editor de Quádricas</h3>
+                <div class="control-group">
+                    <label>Selecionar Quádrica</label>
+                    <select id="quadricSelect">
+                        <option value="0">Quádrica 1 (Esfera)</option>
+                        <option value="1">Quádrica 2 (Hiperboloide)</option>
+                        <option value="2">Quádrica 3 (Paraboloide)</option>
+                        <option value="3">Quádrica 4 (Cilindro)</option>
+                    </select>
+                </div>
+                
+                <div class="quadric-editor">
+                    <div class="coefficients-grid">
+                        <div class="coeff-input">
+                            <label>A (x²)</label>
+                            <input type="number" id="coeff_A" step="0.1" value="1.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>B (y²)</label>
+                            <input type="number" id="coeff_B" step="0.1" value="1.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>C (z²)</label>
+                            <input type="number" id="coeff_C" step="0.1" value="1.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>D (xy)</label>
+                            <input type="number" id="coeff_D" step="0.1" value="0.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>E (xz)</label>
+                            <input type="number" id="coeff_E" step="0.1" value="0.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>F (yz)</label>
+                            <input type="number" id="coeff_F" step="0.1" value="0.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>G (x)</label>
+                            <input type="number" id="coeff_G" step="0.1" value="0.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>H (y)</label>
+                            <input type="number" id="coeff_H" step="0.1" value="0.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>I (z)</label>
+                            <input type="number" id="coeff_I" step="0.1" value="0.0">
+                        </div>
+                        <div class="coeff-input">
+                            <label>J (const)</label>
+                            <input type="number" id="coeff_J" step="0.1" value="-1.0">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <button onclick="applyPreset('sphere')">Esfera</button>
+                        <button onclick="applyPreset('ellipsoid')">Elipsoide</button>
+                        <button onclick="applyPreset('cylinder')">Cilindro</button>
+                        <button onclick="applyPreset('cone')">Cone</button>
+                        <button onclick="applyPreset('hyperboloid')">Hiperboloide</button>
+                        <button onclick="applyPreset('paraboloid')">Paraboloide</button>
+                    </div>
+                    
+                    <button onclick="updateQuadric()" style="margin-top: 10px;">Aplicar Mudanças</button>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>⌨️ Controles</h3>
+                <div class="controls-info">
+                    <strong>Mouse:</strong><br>
+                    • Botão Direito + Arrastar = Rotação<br>
+                    • Scroll = Zoom<br><br>
+                    
+                    <strong>Teclado:</strong><br>
+                    • <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> = Movimento<br>
+                    • <kbd>Q</kbd><kbd>E</kbd> = Cima/Baixo<br>
+                    • <kbd>Shift</kbd> = Velocidade 3x<br>
+                    • <kbd>R</kbd> = Reset Câmera
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <canvas id="canvas" width="1080" height="600"></canvas>
+            <div class="info-box">
+                <strong>Path Tracer com Superfícies Quádricas</strong><br>
+                Implementação WebGL de path tracing em tempo real com suporte a iluminação global,
+                superfícies quádricas interativas e múltiplas cenas. Explore 5 cenas diferentes:
+                Cornell Box Showcase, Simple Spheres, Glass & Metal Study, Metals Lineup e Superfícies Quádricas.
+                Desenvolvido para o projeto de Computação Gráfica 2025.2 por Karla Falcão e Jefferson Costa.
+            </div>
+        </div>
+    </div>
+    
+    <script src="pathtracer.js"></script>
+</body>
+</html>
