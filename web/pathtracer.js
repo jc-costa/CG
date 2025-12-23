@@ -42,20 +42,24 @@ let settings = {
     quality: 1.0
 };
 
-// Quadrics data (up to 4 quadrics)
+// Quadrics data (positioned to be visible in scenes)
 let quadrics = [
-    // Sphere at position (-2, 0, 0)
-    { A: 1.0, B: 1.0, C: 1.0, D: 0.0, E: 0.0, F: 0.0, G: 4.0, H: 0.0, I: 0.0, J: 3.0,
-      bboxMin: [-3, -1, -1], bboxMax: [-1, 1, 1], material: 2 },
-    // Hyperboloid at (0, 0, 0)
-    { A: 1.0, B: -1.0, C: 1.0, D: 0.0, E: 0.0, F: 0.0, G: 0.0, H: 0.0, I: 0.0, J: -0.5,
-      bboxMin: [-2, -2, -2], bboxMax: [2, 2, 2], material: 6 },
-    // Paraboloid at (2, 0, 0)
-    { A: 1.0, B: 1.0, C: 0.0, D: 0.0, E: 0.0, F: 0.0, G: -4.0, H: 0.0, I: -1.0, J: 4.0,
-      bboxMin: [1, -2, -2], bboxMax: [3, 2, 0], material: 7 },
-    // Cylinder at (0, 0, 0)
-    { A: 1.0, B: 0.0, C: 1.0, D: 0.0, E: 0.0, F: 0.0, G: 0.0, H: 0.0, I: 0.0, J: -0.5,
-      bboxMin: [-1, -2, -1], bboxMax: [1, 2, 1], material: 3 }
+    // Quadric 0: Sphere - floating above and to the right
+    // Center: (2.5, 1.5, 0.0), radius: 1.0
+    { A: 1.0, B: 1.0, C: 1.0, D: 0.0, E: 0.0, F: 0.0, G: -5.0, H: -3.0, I: 0.0, J: 8.25,
+      bboxMin: [1.5, 0.5, -1.0], bboxMax: [3.5, 2.5, 1.0], material: 4 },
+    // Quadric 1: Ellipsoid - left side elevated
+    // Scaled ellipsoid centered at (-2.5, 1.0, 0.0)
+    { A: 1.0, B: 0.5, C: 1.0, D: 0.0, E: 0.0, F: 0.0, G: 5.0, H: -1.0, I: 0.0, J: 4.25,
+      bboxMin: [-4.0, -0.5, -1.5], bboxMax: [-1.0, 2.5, 1.5], material: 7 },
+    // Quadric 2: Cylinder along Y axis - center position
+    // Centered at (0.0, 0.0, -1.5)
+    { A: 1.0, B: 0.0, C: 1.0, D: 0.0, E: 0.0, F: 0.0, G: 0.0, H: 0.0, I: 3.0, J: 1.25,
+      bboxMin: [-1.2, -3.0, -2.7], bboxMax: [1.2, 3.0, -0.3], material: 3 },
+    // Quadric 3: Cone - back position
+    // Double cone centered at (0.0, 0.5, -2.5)
+    { A: 1.0, B: -1.0, C: 1.0, D: 0.0, E: 0.0, F: 0.0, G: 0.0, H: 1.0, I: 5.0, J: 5.5,
+      bboxMin: [-2.0, -1.5, -4.5], bboxMax: [2.0, 2.5, -0.5], material: 6 }
 ];
 
 let currentQuadric = 0;
@@ -104,6 +108,7 @@ uniform int uSceneIndex;
 
 // Quadrics
 uniform int uNumQuadrics;
+uniform int uCurrentQuadric;
 uniform float uQuadrics_A[4];
 uniform float uQuadrics_B[4];
 uniform float uQuadrics_C[4];
@@ -183,15 +188,16 @@ struct Ray {
 };
 
 // ============================================================================
-// Material Structure
+// Material Structure (PBR Disney-inspired)
 // ============================================================================
 struct Material {
-    vec3 albedo;
-    vec3 emission;
-    float roughness;
-    float metallic;
-    float ior;
-    int type; // 0=diffuse, 1=metal, 2=glass, 3=emission
+    vec3 albedo;           // Base color
+    float roughness;       // Surface roughness [0-1]
+    float metallic;        // Metalness [0-1]
+    vec3 emission;         // Emissive color
+    float emissionStrength;// Emission intensity
+    float ior;             // Index of refraction (glass)
+    float transmission;    // Transmission amount (glass)
 };
 
 // ============================================================================
@@ -206,19 +212,113 @@ struct HitRecord {
 };
 
 // ============================================================================
-// Materials Database
+// Materials Database (matching C++ version)
 // ============================================================================
 Material getMaterial(int idx) {
-    if (idx == 0) return Material(vec3(0.9, 0.1, 0.1), vec3(0.0), 0.5, 0.0, 1.5, 0); // Red wall
-    if (idx == 1) return Material(vec3(0.1, 0.9, 0.1), vec3(0.0), 0.5, 0.0, 1.5, 0); // Green wall
-    if (idx == 2) return Material(vec3(0.95, 0.95, 0.95), vec3(0.0), 0.02, 1.0, 1.5, 1); // Chrome
-    if (idx == 3) return Material(vec3(1.0, 1.0, 1.0), vec3(0.0), 0.0, 0.0, 1.5, 2); // Glass
-    if (idx == 4) return Material(vec3(0.9, 0.9, 0.9), vec3(0.0), 0.8, 0.0, 1.5, 0); // White diffuse
-    if (idx == 5) return Material(vec3(0.0), vec3(15.0, 15.0, 15.0), 0.0, 0.0, 1.5, 3); // Light
-    if (idx == 6) return Material(vec3(0.2, 0.5, 0.9), vec3(0.0), 0.3, 0.0, 1.5, 0); // Blue glossy
-    if (idx == 7) return Material(vec3(1.0, 0.84, 0.0), vec3(0.0), 0.1, 1.0, 1.5, 1); // Gold
-    if (idx == 8) return Material(vec3(0.95, 0.64, 0.54), vec3(0.0), 0.2, 1.0, 1.5, 1); // Copper/Bronze
-    return Material(vec3(0.8), vec3(0.0), 0.5, 0.0, 1.5, 0);
+    Material m;
+    
+    // Match C++ materials exactly
+    if (idx == 0) { // White diffuse (floor/ceiling)
+        m.albedo = vec3(0.73, 0.73, 0.73);
+        m.roughness = 0.9;
+        m.metallic = 0.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 1) { // Red diffuse (left wall)
+        m.albedo = vec3(0.65, 0.05, 0.05);
+        m.roughness = 0.9;
+        m.metallic = 0.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 2) { // Green diffuse (right wall)
+        m.albedo = vec3(0.12, 0.45, 0.15);
+        m.roughness = 0.9;
+        m.metallic = 0.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 3) { // Chrome metal
+        m.albedo = vec3(0.9, 0.9, 0.9);
+        m.roughness = 0.02;
+        m.metallic = 1.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 4) { // Gold metal
+        m.albedo = vec3(1.0, 0.78, 0.34);
+        m.roughness = 0.1;
+        m.metallic = 1.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 5) { // Warm area light
+        m.albedo = vec3(1.0, 0.95, 0.85);
+        m.roughness = 1.0;
+        m.metallic = 0.0;
+        m.emission = vec3(1.0, 0.95, 0.85);
+        m.emissionStrength = 15.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 6) { // Clear glass
+        m.albedo = vec3(1.0, 1.0, 1.0);
+        m.roughness = 0.0;
+        m.metallic = 0.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 1.0;
+    }
+    else if (idx == 7) { // Blue glossy
+        m.albedo = vec3(0.1, 0.3, 0.8);
+        m.roughness = 0.05;
+        m.metallic = 0.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 8) { // Rough white
+        m.albedo = vec3(0.95, 0.93, 0.88);
+        m.roughness = 0.4;
+        m.metallic = 0.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else if (idx == 9) { // Bronze
+        m.albedo = vec3(0.85, 0.5, 0.2);
+        m.roughness = 0.3;
+        m.metallic = 0.5;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    else { // Default
+        m.albedo = vec3(0.8);
+        m.roughness = 0.5;
+        m.metallic = 0.0;
+        m.emission = vec3(0.0);
+        m.emissionStrength = 0.0;
+        m.ior = 1.5;
+        m.transmission = 0.0;
+    }
+    
+    return m;
 }
 
 // ============================================================================
@@ -278,21 +378,37 @@ bool intersectQuadric(Ray ray, int idx, inout HitRecord rec) {
     float t1 = (-b - sqrtD) / (2.0 * a);
     float t2 = (-b + sqrtD) / (2.0 * a);
     
+    // Try nearest intersection first
     float t = t1;
-    if (t < EPSILON) t = t2;
-    if (t < EPSILON || t > rec.t) return false;
+    if (t < EPSILON || t >= rec.t) {
+        t = t2;
+        if (t < EPSILON || t >= rec.t) {
+            return false;
+        }
+    }
     
-    rec.t = t;
-    rec.point = ray.origin + t * ray.direction;
+    vec3 P = ray.origin + t * ray.direction;
     
     // Calculate normal using gradient
     vec3 grad = vec3(
-        2.0*A*rec.point.x + D*rec.point.y + E*rec.point.z + G,
-        2.0*B*rec.point.y + D*rec.point.x + F*rec.point.z + H,
-        2.0*C*rec.point.z + E*rec.point.x + F*rec.point.y + I
+        2.0*A*P.x + D*P.y + E*P.z + G,
+        2.0*B*P.y + D*P.x + F*P.z + H,
+        2.0*C*P.z + E*P.x + F*P.y + I
     );
     
-    rec.normal = normalize(grad);
+    float gradLen = length(grad);
+    if (gradLen < EPSILON) return false;
+    
+    vec3 normal = grad / gradLen;
+    
+    // Flip normal to face ray origin (frontFace logic)
+    if (dot(ray.direction, normal) > 0.0) {
+        normal = -normal;
+    }
+    
+    rec.t = t;
+    rec.point = P;
+    rec.normal = normal;
     rec.material = getMaterial(uQuadrics_materialIndex[idx]);
     rec.hit = true;
     
@@ -365,58 +481,60 @@ HitRecord intersectScene(Ray ray) {
     rec.hit = false;
     rec.t = MAX_DISTANCE;
     
-    // Scene 0: Cornell Box Showcase
+    // Quadric (only the selected one is rendered)
+    if (uNumQuadrics > 0 && uCurrentQuadric >= 0 && uCurrentQuadric < 4) {
+        intersectQuadric(ray, uCurrentQuadric, rec);
+    }
+    
+    // Scene 0: Cornell Box Showcase (matching C++ exactly)
     if (uSceneIndex == 0) {
-        // Cornell Box walls
-        intersectBox(ray, vec3(-5.01, -5.0, -5.0), vec3(-5.0, 5.0, 5.0), getMaterial(0), rec);
-        intersectBox(ray, vec3(5.0, -5.0, -5.0), vec3(5.01, 5.0, 5.0), getMaterial(1), rec);
-        intersectBox(ray, vec3(-5.0, -5.01, -5.0), vec3(5.0, -5.0, 5.0), getMaterial(4), rec);
-        intersectBox(ray, vec3(-5.0, 5.0, -5.0), vec3(5.0, 5.01, 5.0), getMaterial(4), rec);
-        intersectBox(ray, vec3(-5.0, -5.0, -5.01), vec3(5.0, 5.0, -5.0), getMaterial(4), rec);
-        intersectBox(ray, vec3(-1.5, 4.99, -1.5), vec3(1.5, 5.0, 1.5), getMaterial(5), rec);
+        // Cornell Box walls (using materials 0,1,2)
+        intersectBox(ray, vec3(-5.01, -5.0, -5.0), vec3(-5.0, 5.0, 5.0), getMaterial(1), rec); // Red left
+        intersectBox(ray, vec3(5.0, -5.0, -5.0), vec3(5.01, 5.0, 5.0), getMaterial(2), rec); // Green right
+        intersectBox(ray, vec3(-5.0, -5.01, -5.0), vec3(5.0, -5.0, 5.0), getMaterial(0), rec); // White floor
+        intersectBox(ray, vec3(-5.0, 5.0, -5.0), vec3(5.0, 5.01, 5.0), getMaterial(0), rec); // White ceiling
+        intersectBox(ray, vec3(-5.0, -5.0, -5.01), vec3(5.0, 5.0, -5.0), getMaterial(0), rec); // White back
+        intersectBox(ray, vec3(-1.5, 4.99, -1.5), vec3(1.5, 5.0, 1.5), getMaterial(5), rec); // Light
         
-        // Spheres
-        intersectSphere(ray, vec3(-1.0, -2.0, -1.0), 1.0, getMaterial(2), rec); // Chrome
-        intersectSphere(ray, vec3(1.5, -2.2, 0.5), 0.8, getMaterial(7), rec); // Gold
-        intersectSphere(ray, vec3(0.0, -2.3, 1.5), 0.7, getMaterial(3), rec); // Glass
-        intersectSphere(ray, vec3(-2.0, -2.5, 1.5), 0.5, getMaterial(6), rec); // Blue
+        // Spheres (matching initScene() in C++)
+        intersectSphere(ray, vec3(-1.0, -2.0, -1.0), 1.0, getMaterial(3), rec); // Chrome
+        intersectSphere(ray, vec3(1.5, -2.2, 0.5), 0.8, getMaterial(4), rec); // Gold
+        intersectSphere(ray, vec3(0.0, -2.3, 1.5), 0.7, getMaterial(6), rec); // Glass
+        intersectSphere(ray, vec3(-2.0, -2.5, 1.5), 0.5, getMaterial(7), rec); // Blue glossy
         intersectSphere(ray, vec3(2.0, -1.5, -1.5), 0.4, getMaterial(5), rec); // Emissive
+        intersectSphere(ray, vec3(0.5, -2.6, -1.8), 0.4, getMaterial(9), rec); // Bronze
     }
     // Scene 1: Simple Spheres
     else if (uSceneIndex == 1) {
-        intersectSphere(ray, vec3(0.0, 0.0, 0.0), 1.0, getMaterial(0), rec); // Pink
-        intersectSphere(ray, vec3(2.5, 0.0, 0.0), 1.0, getMaterial(5), rec); // Orange emissive
-        intersectSphere(ray, vec3(0.0, -101.0, 0.0), 100.0, getMaterial(6), rec); // Ground
+        // Pink sphere at origin
+        intersectSphere(ray, vec3(0.0, 0.0, 0.0), 1.0, getMaterial(0), rec);
+        // Orange emissive sphere offset on +X
+        intersectSphere(ray, vec3(2.5, 0.0, 0.0), 1.0, getMaterial(5), rec);
+        // Ground sphere using blue material
+        intersectSphere(ray, vec3(0.0, -101.0, 0.0), 100.0, getMaterial(7), rec);
     }
     // Scene 2: Glass & Metal Study
     else if (uSceneIndex == 2) {
-        intersectBox(ray, vec3(-5.01, -5.0, -5.0), vec3(-5.0, 5.0, 5.0), getMaterial(0), rec);
-        intersectBox(ray, vec3(5.0, -5.0, -5.0), vec3(5.01, 5.0, 5.0), getMaterial(1), rec);
-        intersectBox(ray, vec3(-5.0, -5.01, -5.0), vec3(5.0, -5.0, 5.0), getMaterial(4), rec);
-        intersectBox(ray, vec3(-5.0, 5.0, -5.0), vec3(5.0, 5.01, 5.0), getMaterial(4), rec);
-        intersectBox(ray, vec3(-5.0, -5.0, -5.01), vec3(5.0, 5.0, -5.0), getMaterial(4), rec);
+        intersectBox(ray, vec3(-5.01, -5.0, -5.0), vec3(-5.0, 5.0, 5.0), getMaterial(1), rec);
+        intersectBox(ray, vec3(5.0, -5.0, -5.0), vec3(5.01, 5.0, 5.0), getMaterial(2), rec);
+        intersectBox(ray, vec3(-5.0, -5.01, -5.0), vec3(5.0, -5.0, 5.0), getMaterial(0), rec);
+        intersectBox(ray, vec3(-5.0, 5.0, -5.0), vec3(5.0, 5.01, 5.0), getMaterial(0), rec);
+        intersectBox(ray, vec3(-5.0, -5.0, -5.01), vec3(5.0, 5.0, -5.0), getMaterial(0), rec);
         intersectBox(ray, vec3(-1.5, 4.99, -1.5), vec3(1.5, 5.0, 1.5), getMaterial(5), rec);
         
-        intersectSphere(ray, vec3(0.0, -1.5, 0.0), 1.5, getMaterial(3), rec); // Glass
-        intersectSphere(ray, vec3(-2.5, -2.2, 0.5), 0.8, getMaterial(2), rec); // Chrome
-        intersectSphere(ray, vec3(2.5, -2.2, 0.5), 0.8, getMaterial(7), rec); // Gold
+        intersectSphere(ray, vec3(0.0, -1.5, 0.0), 1.5, getMaterial(6), rec); // Glass
+        intersectSphere(ray, vec3(-2.5, -2.2, 0.5), 0.8, getMaterial(3), rec); // Chrome
+        intersectSphere(ray, vec3(2.5, -2.2, 0.5), 0.8, getMaterial(4), rec); // Gold
         intersectSphere(ray, vec3(0.0, -2.5, -2.0), 0.5, getMaterial(5), rec); // Emissive
     }
     // Scene 3: Metals Lineup
     else if (uSceneIndex == 3) {
-        intersectBox(ray, vec3(-10.0, -3.01, -10.0), vec3(10.0, -3.0, 10.0), getMaterial(4), rec);
+        intersectBox(ray, vec3(-10.0, -3.01, -10.0), vec3(10.0, -3.0, 10.0), getMaterial(0), rec);
         
-        intersectSphere(ray, vec3(-2.0, -2.0, 0.0), 1.0, getMaterial(2), rec); // Chrome
-        intersectSphere(ray, vec3(0.0, -2.0, 0.0), 1.0, getMaterial(7), rec); // Gold
-        intersectSphere(ray, vec3(2.0, -2.0, 0.0), 1.0, getMaterial(7), rec); // Bronze
+        intersectSphere(ray, vec3(-2.0, -2.0, 0.0), 1.0, getMaterial(3), rec); // Chrome
+        intersectSphere(ray, vec3(0.0, -2.0, 0.0), 1.0, getMaterial(4), rec); // Gold
+        intersectSphere(ray, vec3(2.0, -2.0, 0.0), 1.0, getMaterial(9), rec); // Bronze
         intersectSphere(ray, vec3(0.0, 1.0, 2.0), 0.5, getMaterial(5), rec); // Light
-    }
-    // Scene 4: Quadric Surfaces
-    else if (uSceneIndex == 4) {
-        for (int i = 0; i < uNumQuadrics && i < 4; i++) {
-            intersectQuadric(ray, i, rec);
-        }
-        intersectBox(ray, vec3(-10.0, -3.01, -10.0), vec3(10.0, -3.0, 10.0), getMaterial(4), rec);
     }
     
     return rec;
@@ -452,9 +570,9 @@ vec3 trace(Ray ray) {
         }
         
         // Emission
-        color += throughput * rec.material.emission;
+        color += throughput * rec.material.emission * rec.material.emissionStrength;
         
-        // Russian roulette
+        // Russian roulette (after a few bounces)
         if (bounce > 3) {
             float p = max(throughput.r, max(throughput.g, throughput.b));
             if (randomFloat() > p) break;
@@ -462,22 +580,9 @@ vec3 trace(Ray ray) {
         }
         
         // Material interaction
-        if (rec.material.type == 0) { // Diffuse
-            mat3 onb = createONB(rec.normal);
-            vec3 direction = onb * randomCosineDirection();
-            ray.origin = rec.point + rec.normal * EPSILON;
-            ray.direction = direction;
-            throughput *= rec.material.albedo;
-        }
-        else if (rec.material.type == 1) { // Metal
-            vec3 reflected = reflect(ray.direction, rec.normal);
-            vec3 fuzz = rec.material.roughness * randomInUnitSphere();
-            ray.origin = rec.point + rec.normal * EPSILON;
-            ray.direction = normalize(reflected + fuzz);
-            throughput *= rec.material.albedo;
-            if (dot(ray.direction, rec.normal) < 0.0) break;
-        }
-        else if (rec.material.type == 2) { // Glass
+        
+        // Glass/Transmission
+        if (rec.material.transmission > 0.5) {
             float ior = rec.material.ior;
             bool frontFace = dot(ray.direction, rec.normal) < 0.0;
             vec3 normal = frontFace ? rec.normal : -rec.normal;
@@ -498,8 +603,22 @@ vec3 trace(Ray ray) {
             ray.direction = direction;
             throughput *= rec.material.albedo;
         }
-        else if (rec.material.type == 3) { // Emission
-            break;
+        // Metal
+        else if (rec.material.metallic > 0.5) {
+            vec3 reflected = reflect(ray.direction, rec.normal);
+            vec3 fuzz = rec.material.roughness * randomInUnitSphere();
+            ray.origin = rec.point + rec.normal * EPSILON;
+            ray.direction = normalize(reflected + fuzz);
+            throughput *= rec.material.albedo;
+            if (dot(ray.direction, rec.normal) < 0.0) break;
+        }
+        // Diffuse/Glossy
+        else {
+            mat3 onb = createONB(rec.normal);
+            vec3 direction = onb * randomCosineDirection();
+            ray.origin = rec.point + rec.normal * EPSILON;
+            ray.direction = direction;
+            throughput *= rec.material.albedo;
         }
     }
     
@@ -944,12 +1063,14 @@ function render() {
     gl.uniform1f(loc('uFocusDistance'), camera.focusDistance);
     gl.uniform1i(loc('uSceneIndex'), settings.sceneIndex);
     
-    // Quadrics (only for scene 4)
-    const numQuadrics = settings.sceneIndex === 4 ? 4 : 0;
+    // Quadrics (controlled by checkbox)
+    const quadricsEnabled = document.getElementById('quadricsToggle')?.checked ?? false;
+    const numQuadrics = quadricsEnabled ? 1 : 0;
     gl.uniform1i(loc('uNumQuadrics'), numQuadrics);
+    gl.uniform1i(loc('uCurrentQuadric'), currentQuadric);
     
     if (frameIndex === 0 && numQuadrics > 0) {
-        console.log('Sending', numQuadrics, 'quadrics to shader');
+        console.log('Showing quadric', currentQuadric);
     }
     
     for (let i = 0; i < 4; i++) {
@@ -1071,13 +1192,8 @@ function setupEventHandlers() {
     document.getElementById('sceneSelect').addEventListener('change', (e) => {
         settings.sceneIndex = parseInt(e.target.value);
         
-        // Adjust camera for quadric scene
-        if (settings.sceneIndex === 4) {
-            camera.position = [0.0, 0.0, 6.0];
-            camera.yaw = -Math.PI / 2;
-            camera.pitch = 0.0;
-            updateCameraRotation();
-        } else if (settings.sceneIndex === 1) {
+        // Adjust camera for specific scenes
+        if (settings.sceneIndex === 1) {
             camera.position = [0.0, 2.0, 5.0];
             camera.yaw = -Math.PI / 2;
             camera.pitch = -0.2;
@@ -1093,6 +1209,10 @@ function setupEventHandlers() {
     });
     
     document.getElementById('resetBtn').addEventListener('click', () => {
+        resetAccumulation = true;
+    });
+    
+    document.getElementById('quadricsToggle')?.addEventListener('change', () => {
         resetAccumulation = true;
     });
     
@@ -1126,7 +1246,11 @@ function setupEventHandlers() {
     
     document.getElementById('quadricSelect').addEventListener('change', (e) => {
         currentQuadric = parseInt(e.target.value);
+        console.log('Switched to quadric', currentQuadric);
         loadQuadricToUI();
+        resetAccumulation = true;
+        const shapes = ['Sphere', 'Ellipsoid', 'Cylinder', 'Cone'];
+        showQuadricStatus(`✓ Showing ${shapes[currentQuadric]}`, 'info');
     });
     
     // Quadric coefficient inputs
@@ -1134,12 +1258,23 @@ function setupEventHandlers() {
     coeffIds.forEach(id => {
         document.getElementById(`coeff_${id}`).addEventListener('input', () => {
             updateQuadricFromUI();
+            resetAccumulation = true;
+        });
+    });
+    
+    // Bounding box inputs
+    const bboxIds = ['minX', 'minY', 'minZ', 'maxX', 'maxY', 'maxZ'];
+    bboxIds.forEach(id => {
+        document.getElementById(`bbox_${id}`).addEventListener('input', () => {
+            updateQuadricFromUI();
+            resetAccumulation = true;
         });
     });
 }
 
 function loadQuadricToUI() {
     const q = quadrics[currentQuadric];
+    console.log('Loading quadric', currentQuadric, 'to UI:', q);
     document.getElementById('coeff_A').value = q.A;
     document.getElementById('coeff_B').value = q.B;
     document.getElementById('coeff_C').value = q.C;
@@ -1150,6 +1285,14 @@ function loadQuadricToUI() {
     document.getElementById('coeff_H').value = q.H;
     document.getElementById('coeff_I').value = q.I;
     document.getElementById('coeff_J').value = q.J;
+    
+    // Load bounding box
+    document.getElementById('bbox_minX').value = q.bboxMin[0];
+    document.getElementById('bbox_minY').value = q.bboxMin[1];
+    document.getElementById('bbox_minZ').value = q.bboxMin[2];
+    document.getElementById('bbox_maxX').value = q.bboxMax[0];
+    document.getElementById('bbox_maxY').value = q.bboxMax[1];
+    document.getElementById('bbox_maxZ').value = q.bboxMax[2];
 }
 
 function updateQuadricFromUI() {
@@ -1164,41 +1307,98 @@ function updateQuadricFromUI() {
     q.H = parseFloat(document.getElementById('coeff_H').value) || 0;
     q.I = parseFloat(document.getElementById('coeff_I').value) || 0;
     q.J = parseFloat(document.getElementById('coeff_J').value) || 0;
+    
+    // Update bounding box
+    q.bboxMin[0] = parseFloat(document.getElementById('bbox_minX').value) || 0;
+    q.bboxMin[1] = parseFloat(document.getElementById('bbox_minY').value) || 0;
+    q.bboxMin[2] = parseFloat(document.getElementById('bbox_minZ').value) || 0;
+    q.bboxMax[0] = parseFloat(document.getElementById('bbox_maxX').value) || 0;
+    q.bboxMax[1] = parseFloat(document.getElementById('bbox_maxY').value) || 0;
+    q.bboxMax[2] = parseFloat(document.getElementById('bbox_maxZ').value) || 0;
+    
+    console.log('Updated quadric', currentQuadric, 'from UI:', q);
+}
+
+function showQuadricStatus(message, type = 'info') {
+    const statusDiv = document.getElementById('quadricStatus');
+    const statusText = document.getElementById('quadricStatusText');
+    
+    statusText.textContent = message;
+    statusDiv.style.display = 'block';
+    
+    // Color based on type
+    if (type === 'success') {
+        statusDiv.style.background = 'rgba(0, 200, 0, 0.15)';
+        statusDiv.style.color = '#4eff4e';
+    } else if (type === 'info') {
+        statusDiv.style.background = 'rgba(100, 150, 255, 0.15)';
+        statusDiv.style.color = '#88bbff';
+    }
+    
+    // Auto-hide after 2 seconds
+    setTimeout(() => {
+        statusDiv.style.display = 'none';
+    }, 2000);
 }
 
 function updateQuadric() {
     updateQuadricFromUI();
     resetAccumulation = true;
+    showQuadricStatus('✓ Changes applied', 'success');
 }
 
 // Preset functions
 function applyPreset(type) {
     const q = quadrics[currentQuadric];
+    console.log('Applying preset:', type, 'to quadric', currentQuadric);
     
     switch(type) {
         case 'sphere':
+            // Sphere at origin, radius 1
             q.A=1; q.B=1; q.C=1; q.D=0; q.E=0; q.F=0; q.G=0; q.H=0; q.I=0; q.J=-1;
+            q.bboxMin = [-1.2, -1.2, -1.2];
+            q.bboxMax = [1.2, 1.2, 1.2];
             break;
         case 'ellipsoid':
+            // Ellipsoid at origin
             q.A=1; q.B=0.5; q.C=1; q.D=0; q.E=0; q.F=0; q.G=0; q.H=0; q.I=0; q.J=-1;
+            q.bboxMin = [-1.5, -2, -1.5];
+            q.bboxMax = [1.5, 2, 1.5];
             break;
         case 'cylinder':
+            // Cylinder along Y axis at origin
             q.A=1; q.B=0; q.C=1; q.D=0; q.E=0; q.F=0; q.G=0; q.H=0; q.I=0; q.J=-1;
+            q.bboxMin = [-1.2, -4, -1.2];
+            q.bboxMax = [1.2, 4, 1.2];
             break;
         case 'cone':
+            // Double cone at origin
             q.A=1; q.B=-1; q.C=1; q.D=0; q.E=0; q.F=0; q.G=0; q.H=0; q.I=0; q.J=0;
+            q.bboxMin = [-3, -3, -3];
+            q.bboxMax = [3, 3, 3];
             break;
         case 'hyperboloid':
+            // Hyperboloid of one sheet
             q.A=1; q.B=-1; q.C=1; q.D=0; q.E=0; q.F=0; q.G=0; q.H=0; q.I=0; q.J=-1;
+            q.bboxMin = [-2, -2, -2];
+            q.bboxMax = [2, 2, 2];
             break;
         case 'paraboloid':
+            // Paraboloid opening upward
             q.A=1; q.B=1; q.C=0; q.D=0; q.E=0; q.F=0; q.G=0; q.H=0; q.I=-1; q.J=0;
+            q.bboxMin = [-2, -2, 0];
+            q.bboxMax = [2, 2, 4];
             break;
     }
     
     loadQuadricToUI();
-    updateQuadric();
+    resetAccumulation = true;
+    showQuadricStatus(`✓ Applied ${type} preset`, 'success');
 }
+
+// Make functions globally accessible
+window.updateQuadric = updateQuadric;
+window.applyPreset = applyPreset;
 
 // ============================================================================
 // Main
@@ -1208,6 +1408,9 @@ window.addEventListener('load', () => {
     if (initWebGL()) {
         console.log('WebGL initialized successfully, setting up handlers...');
         setupEventHandlers();
+        
+        // Load initial quadric to UI
+        loadQuadricToUI();
         
         // Clear canvas initially
         gl.clearColor(0.1, 0.1, 0.1, 1.0);

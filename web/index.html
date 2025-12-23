@@ -258,7 +258,7 @@
 <body>
     <div class="container">
         <div class="sidebar">
-            <h1>🎨 Path Tracer Web</h1>
+            <h1>🎨 Web Path Tracer</h1>
             <div class="subtitle">Computer Graphics 2025.2</div>
             
             <div class="stats">
@@ -273,22 +273,25 @@
             </div>
             
             <div class="section">
-                <h3>🎬 Cena</h3>
+                <h3>🎬 Scene</h3>
                 <div class="control-group">
-                    <label>Selecionar Cena</label>
+                    <label>Select Scene</label>
                     <select id="sceneSelect">
                         <option value="0">Cornell Box Showcase</option>
                         <option value="1">Simple Spheres</option>
                         <option value="2">Glass & Metal Study</option>
                         <option value="3">Metals Lineup</option>
-                        <option value="4">Superfícies Quádricas</option>
                     </select>
                 </div>
-                <button id="resetBtn">🔄 Resetar Acumulação</button>
+                <div class="control-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="quadricsToggle" style="width: auto; cursor: pointer;">
+                    <label for="quadricsToggle" style="margin: 0; cursor: pointer;">🔵 Show Quadrics</label>
+                </div>
+                <button id="resetBtn">🔄 Reset Accumulation</button>
             </div>
             
             <div class="section">
-                <h3>🎥 Câmera</h3>
+                <h3>🎥 Camera</h3>
                 <div class="control-group">
                     <label>FOV: <span class="value-display" id="fovValue">60°</span></label>
                     <input type="range" id="fovSlider" min="30" max="120" value="60">
@@ -304,31 +307,53 @@
             </div>
             
             <div class="section">
-                <h3>⚙️ Renderização</h3>
+                <h3>⚙️ Rendering</h3>
                 <div class="control-group">
                     <label>Max Bounces: <span class="value-display" id="bouncesValue">8</span></label>
                     <input type="range" id="bouncesSlider" min="1" max="16" value="8">
                 </div>
                 <div class="control-group">
-                    <label>Qualidade de Imagem</label>
+                    <label>Image Quality</label>
                     <select id="qualitySelect">
-                        <option value="0.5">Rápido (50%)</option>
-                        <option value="0.75">Médio (75%)</option>
-                        <option value="1.0" selected>Alto (100%)</option>
+                        <option value="0.5">Fast (50%)</option>
+                        <option value="0.75">Medium (75%)</option>
+                        <option value="1.0" selected>High (100%)</option>
                     </select>
                 </div>
             </div>
             
             <div class="section">
-                <h3>🔵 Editor de Quádricas</h3>
+                <h3>🔵 Quadric Editor</h3>
+                <div style="font-size: 11px; margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                    <strong>Equation:</strong> Ax² + By² + Cz² + Dxy + Exz + Fyz + Gx + Hy + Iz + J = 0<br>
+                    <em style="opacity: 0.8;">💡 Quadric overlays on all scenes when enabled</em><br>
+                    <br>
+                    <strong>How to use:</strong><br>
+                    1️⃣ Check "Show Quadrics" above<br>
+                    2️⃣ <strong>Dropdown:</strong> Choose which quadric to show<br>
+                    3️⃣ <strong>Preset buttons:</strong> Change its shape<br>
+                    4️⃣ <strong>Coefficient inputs:</strong> Fine-tune the shape<br>
+                    💫 All changes are instant!
+                </div>
                 <div class="control-group">
-                    <label>Selecionar Quádrica</label>
+                    <label>Which Quadric to Show</label>
                     <select id="quadricSelect">
-                        <option value="0">Quádrica 1 (Esfera)</option>
-                        <option value="1">Quádrica 2 (Hiperboloide)</option>
-                        <option value="2">Quádrica 3 (Paraboloide)</option>
-                        <option value="3">Quádrica 4 (Cilindro)</option>
+                        <option value="0">🟡 Quadric 1 (Sphere) - Gold Metal</option>
+                        <option value="1">🔵 Quadric 2 (Ellipsoid) - Blue Glossy</option>
+                        <option value="2">⚪ Quadric 3 (Cylinder) - Chrome Metal</option>
+                        <option value="3">💎 Quadric 4 (Cone) - Clear Glass</option>
                     </select>
+                </div>
+                <div style="font-size: 10px; opacity: 0.7; margin-top: 4px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 3px;">
+                    <strong>Materials showcase:</strong><br>
+                    • Gold: Warm metal with slight roughness<br>
+                    • Blue Glossy: Smooth non-metallic plastic<br>
+                    • Chrome: Mirror-like perfect reflections<br>
+                    • Glass: Transparent with light refraction
+                </div>
+                
+                <div id="quadricStatus" style="font-size: 11px; padding: 6px; background: rgba(0,200,0,0.1); border-radius: 4px; margin-bottom: 8px; display: none;">
+                    <span id="quadricStatusText"></span>
                 </div>
                 
                 <div class="quadric-editor">
@@ -375,31 +400,63 @@
                         </div>
                     </div>
                     
-                    <div class="preset-buttons">
-                        <button onclick="applyPreset('sphere')">Esfera</button>
-                        <button onclick="applyPreset('ellipsoid')">Elipsoide</button>
-                        <button onclick="applyPreset('cylinder')">Cilindro</button>
-                        <button onclick="applyPreset('cone')">Cone</button>
-                        <button onclick="applyPreset('hyperboloid')">Hiperboloide</button>
-                        <button onclick="applyPreset('paraboloid')">Paraboloide</button>
+                    <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <label style="font-size: 11px; font-weight: 600;">Bounding Box (for optimization)</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+                            <div>
+                                <label style="font-size: 10px;">Min X</label>
+                                <input type="number" id="bbox_minX" step="0.5" value="-2" style="width: 100%; padding: 4px; font-size: 11px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 10px;">Max X</label>
+                                <input type="number" id="bbox_maxX" step="0.5" value="2" style="width: 100%; padding: 4px; font-size: 11px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 10px;">Min Y</label>
+                                <input type="number" id="bbox_minY" step="0.5" value="-2" style="width: 100%; padding: 4px; font-size: 11px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 10px;">Max Y</label>
+                                <input type="number" id="bbox_maxY" step="0.5" value="2" style="width: 100%; padding: 4px; font-size: 11px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 10px;">Min Z</label>
+                                <input type="number" id="bbox_minZ" step="0.5" value="-2" style="width: 100%; padding: 4px; font-size: 11px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 10px;">Max Z</label>
+                                <input type="number" id="bbox_maxZ" step="0.5" value="2" style="width: 100%; padding: 4px; font-size: 11px;">
+                            </div>
+                        </div>
                     </div>
                     
-                    <button onclick="updateQuadric()" style="margin-top: 10px;">Aplicar Mudanças</button>
+                    <div class="preset-buttons">
+                        <button onclick="applyPreset('sphere')">Sphere</button>
+                        <button onclick="applyPreset('ellipsoid')">Ellipsoid</button>
+                        <button onclick="applyPreset('cylinder')">Cylinder</button>
+                        <button onclick="applyPreset('cone')">Cone</button>
+                        <button onclick="applyPreset('hyperboloid')">Hyperboloid</button>
+                        <button onclick="applyPreset('paraboloid')">Paraboloid</button>
+                    </div>
+                    
+                    <div style="font-size: 10px; opacity: 0.7; margin-top: 8px; text-align: center;">
+                        💡 Presets apply instantly. Manual edits update live.
+                    </div>
                 </div>
             </div>
             
             <div class="section">
-                <h3>⌨️ Controles</h3>
+                <h3>⌨️ Controls</h3>
                 <div class="controls-info">
                     <strong>Mouse:</strong><br>
-                    • Botão Direito + Arrastar = Rotação<br>
+                    • Right Click + Drag = Rotation<br>
                     • Scroll = Zoom<br><br>
                     
-                    <strong>Teclado:</strong><br>
-                    • <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> = Movimento<br>
-                    • <kbd>Q</kbd><kbd>E</kbd> = Cima/Baixo<br>
-                    • <kbd>Shift</kbd> = Velocidade 3x<br>
-                    • <kbd>R</kbd> = Reset Câmera
+                    <strong>Keyboard:</strong><br>
+                    • <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> = Movement<br>
+                    • <kbd>Q</kbd><kbd>E</kbd> = Up/Down<br>
+                    • <kbd>Shift</kbd> = 3x Speed<br>
+                    • <kbd>R</kbd> = Reset Camera
                 </div>
             </div>
         </div>
@@ -407,11 +464,11 @@
         <div class="main-content">
             <canvas id="canvas" width="1080" height="600"></canvas>
             <div class="info-box">
-                <strong>Path Tracer com Superfícies Quádricas</strong><br>
-                Implementação WebGL de path tracing em tempo real com suporte a iluminação global,
-                superfícies quádricas interativas e múltiplas cenas. Explore 5 cenas diferentes:
-                Cornell Box Showcase, Simple Spheres, Glass & Metal Study, Metals Lineup e Superfícies Quádricas.
-                Desenvolvido para o projeto de Computação Gráfica 2025.2 por Karla Falcão e Jefferson Costa.
+                <strong>Path Tracer with Quadric Surfaces</strong><br>
+                WebGL implementation of real-time path tracing with support for global illumination,
+                interactive quadric surfaces and multiple scenes. Explore 4 different scenes:
+                Cornell Box Showcase, Simple Spheres, Glass & Metal Study, and Metals Lineup.
+                Developed for the Computer Graphics 2025.2 project by Karla Falcão and Jefferson Costa.
             </div>
         </div>
     </div>
