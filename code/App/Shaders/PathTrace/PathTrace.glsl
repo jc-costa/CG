@@ -404,6 +404,7 @@ struct HitRecord
     vec3 normal;
     int materialIndex;
     bool frontFace;
+    bool isOBJ;
 };
 
 // Ray-sphere intersection
@@ -432,6 +433,7 @@ bool intersectSphere(vec3 ro, vec3 rd, Sphere sphere, inout HitRecord hit)
     hit.frontFace = dot(rd, outwardNormal) < 0.0;
     hit.normal = hit.frontFace ? outwardNormal : -outwardNormal;
     hit.materialIndex = sphere.materialIndex;
+    hit.isOBJ = false;
     
     return true;
 }
@@ -451,6 +453,7 @@ bool intersectPlane(vec3 ro, vec3 rd, Plane plane, inout HitRecord hit)
     hit.frontFace = denom < 0.0;
     hit.normal = hit.frontFace ? plane.normal : -plane.normal;
     hit.materialIndex = plane.materialIndex;
+    hit.isOBJ = false;
     
     return true;
 }
@@ -558,6 +561,7 @@ bool intersectQuadric(vec3 ro, vec3 rd, Quadric q, inout HitRecord hit)
     hit.frontFace = dot(rd, normal) < 0.0;
     hit.normal = hit.frontFace ? normal : -normal;
     hit.materialIndex = q.materialIndex;
+    hit.isOBJ = false;
 
     return true;
 }
@@ -599,6 +603,7 @@ bool intersectTriangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2,
     hit.frontFace = dot(rd, interpolatedNormal) < 0.0;
     hit.normal = hit.frontFace ? interpolatedNormal : -interpolatedNormal;
     hit.materialIndex = matIdx;
+    hit.isOBJ = true;
     
     return true;
 }
@@ -685,37 +690,7 @@ void initScene()
     materials[9] = createMaterial(vec3(0.85, 0.5, 0.2), 0.3, 0.5);     // Bronze
 
     // Spheres - showcase scene
-    // Large chrome sphere
-    spheres[0].center = vec3(-1.0, -2.0, -1.0);
-    spheres[0].radius = 1.0;
-    spheres[0].materialIndex = 3;
-
-    // Gold sphere
-    spheres[1].center = vec3(1.5, -2.2, 0.5);
-    spheres[1].radius = 0.8;
-    spheres[1].materialIndex = 4;
-
-    // Glass sphere
-    spheres[2].center = vec3(0.0, -2.3, 1.5);
-    spheres[2].radius = 0.7;
-    spheres[2].materialIndex = 6;
-
-    // Blue glossy sphere
-    spheres[3].center = vec3(-2.0, -2.5, 1.5);
-    spheres[3].radius = 0.5;
-    spheres[3].materialIndex = 7;
-
-    // Small emissive sphere (accent light)
-    spheres[4].center = vec3(2.0, -1.5, -1.5);
-    spheres[4].radius = 0.4;
-    spheres[4].materialIndex = 5;
-
-    // Bronze sphere
-    spheres[5].center = vec3(0.5, -2.6, -1.8);
-    spheres[5].radius = 0.4;
-    spheres[5].materialIndex = 9;
-
-//     Initialize all spheres to default (hidden far away)
+    // Initialize all spheres to default (hidden far away)
     for (int i = 0; i < NUM_SPHERES; i++)
     {
         spheres[i].center = vec3(0.0, -1000.0, 0.0);
@@ -842,28 +817,6 @@ bool intersectScene(vec3 ro, vec3 rd, inout HitRecord hit)
     }
     else
     {
-        // Quadrics (from uniforms) - DEBUG VERSION
-        for (int i = 0; i < uNumQuadrics && i < 8; i++)
-        {
-            Quadric q;
-            q.A = uQuadrics_A[i];
-            q.B = uQuadrics_B[i];
-            q.C = uQuadrics_C[i];
-            q.D = uQuadrics_D[i];
-            q.E = uQuadrics_E[i];
-            q.F = uQuadrics_F[i];
-            q.G = uQuadrics_G[i];
-            q.H = uQuadrics_H[i];
-            q.I = uQuadrics_I[i];
-            q.J = uQuadrics_J[i];
-            q.bboxMin = uQuadrics_bboxMin[i];
-            q.bboxMax = uQuadrics_bboxMax[i];
-            q.materialIndex = uQuadrics_materialIndex[i];
-
-            bool quadricHit = intersectQuadric(ro, rd, q, hit);
-            if (quadricHit)
-            hitAnything = true;
-        }
 
         // Procedural spheres
         for (int i = 0; i < NUM_SPHERES; i++)
@@ -904,6 +857,27 @@ bool intersectScene(vec3 ro, vec3 rd, inout HitRecord hit)
         if (intersectPlane(ro, rd, rightWall, hit)) hitAnything = true;
     }
 
+    // Quadrics (from uniforms) - DEBUG VERSION
+    for (int i = 0; i < uNumQuadrics && i < 8; i++)
+    {
+        Quadric q;
+        q.A = uQuadrics_A[i];
+        q.B = uQuadrics_B[i];
+        q.C = uQuadrics_C[i];
+        q.D = uQuadrics_D[i];
+        q.E = uQuadrics_E[i];
+        q.F = uQuadrics_F[i];
+        q.G = uQuadrics_G[i];
+        q.H = uQuadrics_H[i];
+        q.I = uQuadrics_I[i];
+        q.J = uQuadrics_J[i];
+        q.bboxMin = uQuadrics_bboxMin[i];
+        q.bboxMax = uQuadrics_bboxMax[i];
+        q.materialIndex = uQuadrics_materialIndex[i];
+
+        bool quadricHit = intersectQuadric(ro, rd, q, hit);
+        if (quadricHit) hitAnything = true;
+    }
 
     return hitAnything;
 }
@@ -990,7 +964,7 @@ vec3 pathTrace(vec3 rayOrigin, vec3 rayDirection)
         
         // Get material either from OBJ texture or procedural array
         Material mat;
-        if (uUseOBJScene && uNumTriangles > 0)
+        if (uUseOBJScene && uNumTriangles > 0 && hit.isOBJ)
         {
             mat = getMaterialFromTexture(hit.materialIndex);
         }
@@ -1024,7 +998,7 @@ vec3 pathTrace(vec3 rayOrigin, vec3 rayDirection)
         // -----------------------------------------------------------------
         vec3 V = -rd;
         vec3 N = hit.normal;
-        
+
         // Handle transmission (kt > 0): TRANSMITTED ray
         if (mat.transmission > 0.0)
         {

@@ -278,12 +278,12 @@ static void RenderImGui()
 		ImGui::BulletText("M/Shift+M: Quadric meshes");
 
 
-		if (s_UseOBJScene == false)
-		{
+		// if (s_UseOBJScene == false)
+		// {
 			ImGui::Separator();
 			ImGui::Text("Quadrics:");
 			ImGui::BulletText("G: Toggle Quadric Editor");
-		}
+		// }
 
         ImGui::Separator();
 		ImGui::Text("Camera Controls:");
