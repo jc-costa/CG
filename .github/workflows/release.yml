@@ -1,0 +1,228 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake
+
+      - name: Configure CMake
+        working-directory: code
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+      - name: Build
+        working-directory: code
+        run: cmake --build build --config ${{env.BUILD_TYPE}} -j$(sysctl -n hw.ncpu)
+
+      - name: Package
+        working-directory: code
+        run: |
+          mkdir -p release/CinematicPathTracer-macOS
+          cp build/App/App release/CinematicPathTracer-macOS/
+          cp -r build/App/Shaders release/CinematicPathTracer-macOS/
+          cp -r build/App/assets release/CinematicPathTracer-macOS/
+          cp README.md release/CinematicPathTracer-macOS/
+          cd release
+          zip -r CinematicPathTracer-macOS.zip CinematicPathTracer-macOS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CinematicPathTracer-macOS
+          path: code/release/CinematicPathTracer-macOS.zip
+
+  build-macos-arm:
+    runs-on: macos-14  # M1/ARM runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake
+
+      - name: Configure CMake
+        working-directory: code
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Build
+        working-directory: code
+        run: cmake --build build --config ${{env.BUILD_TYPE}} -j$(sysctl -n hw.ncpu)
+
+      - name: Package
+        working-directory: code
+        run: |
+          mkdir -p release/CinematicPathTracer-macOS-ARM64
+          cp build/App/App release/CinematicPathTracer-macOS-ARM64/
+          cp -r build/App/Shaders release/CinematicPathTracer-macOS-ARM64/
+          cp -r build/App/assets release/CinematicPathTracer-macOS-ARM64/
+          cp README.md release/CinematicPathTracer-macOS-ARM64/
+          cd release
+          zip -r CinematicPathTracer-macOS-ARM64.zip CinematicPathTracer-macOS-ARM64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CinematicPathTracer-macOS-ARM64
+          path: code/release/CinematicPathTracer-macOS-ARM64.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
+
+      - name: Configure CMake
+        working-directory: code
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+      - name: Build
+        working-directory: code
+        run: cmake --build build --config ${{env.BUILD_TYPE}} -j$(nproc)
+
+      - name: Package
+        working-directory: code
+        run: |
+          mkdir -p release/CinematicPathTracer-Linux
+          cp build/App/App release/CinematicPathTracer-Linux/
+          cp -r build/App/Shaders release/CinematicPathTracer-Linux/
+          cp -r build/App/assets release/CinematicPathTracer-Linux/
+          cp README.md release/CinematicPathTracer-Linux/
+          chmod +x release/CinematicPathTracer-Linux/App
+          cd release
+          tar -czvf CinematicPathTracer-Linux.tar.gz CinematicPathTracer-Linux
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CinematicPathTracer-Linux
+          path: code/release/CinematicPathTracer-Linux.tar.gz
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        working-directory: code
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+      - name: Build
+        working-directory: code
+        run: cmake --build build --config ${{env.BUILD_TYPE}} --parallel
+
+      - name: Package
+        working-directory: code
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/CinematicPathTracer-Windows
+          Copy-Item -Path build/App/Release/App.exe -Destination release/CinematicPathTracer-Windows/ -ErrorAction SilentlyContinue
+          Copy-Item -Path build/App/App.exe -Destination release/CinematicPathTracer-Windows/ -ErrorAction SilentlyContinue
+          Copy-Item -Path build/App/Shaders -Destination release/CinematicPathTracer-Windows/ -Recurse
+          Copy-Item -Path build/App/assets -Destination release/CinematicPathTracer-Windows/ -Recurse
+          Copy-Item -Path README.md -Destination release/CinematicPathTracer-Windows/
+          Compress-Archive -Path release/CinematicPathTracer-Windows -DestinationPath release/CinematicPathTracer-Windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CinematicPathTracer-Windows
+          path: code/release/CinematicPathTracer-Windows.zip
+
+  create-release:
+    needs: [build-macos, build-macos-arm, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Cinematic Path Tracer ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Cinematic Path Tracer ${{ steps.version.outputs.version }}
+            
+            A production-quality GPU path tracer featuring physically-based rendering, progressive accumulation, and real-time camera controls.
+            
+            ### Downloads
+            
+            | Platform | Architecture | File |
+            |----------|--------------|------|
+            | macOS | Intel (x64) | `CinematicPathTracer-macOS.zip` |
+            | macOS | Apple Silicon (ARM64) | `CinematicPathTracer-macOS-ARM64.zip` |
+            | Linux | x64 | `CinematicPathTracer-Linux.tar.gz` |
+            | Windows | x64 | `CinematicPathTracer-Windows.zip` |
+            
+            ### Requirements
+            - OpenGL 4.1+ capable GPU
+            - For Linux: Install OpenGL drivers (`mesa-utils`)
+            
+            ### Quick Start
+            1. Download the appropriate package for your platform
+            2. Extract the archive
+            3. Run the `App` executable (or `App.exe` on Windows)
+            
+            ### Controls
+            - **Right Mouse + WASD**: Move camera
+            - **Q / E**: Move up / down  
+            - **Shift**: Move faster
+            - **R**: Reload shaders
+            - **T**: Cycle tonemapper
+            - **I**: Cycle scenes
+            - **ESC**: Quit
+            
+            See the README for full documentation.
+          files: |
+            artifacts/CinematicPathTracer-macOS/CinematicPathTracer-macOS.zip
+            artifacts/CinematicPathTracer-macOS-ARM64/CinematicPathTracer-macOS-ARM64.zip
+            artifacts/CinematicPathTracer-Linux/CinematicPathTracer-Linux.tar.gz
+            artifacts/CinematicPathTracer-Windows/CinematicPathTracer-Windows.zip
+

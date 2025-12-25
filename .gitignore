@@ -17,5 +17,6 @@ CMakeUserPresets.json
 .vscode/
 
 build/
+release/
 
 bin/
