@@ -1,4 +1,5 @@
 #include "Shader.h"
+#include "SceneManager/FileManager.h"
 
 #include <iostream>
 #include <fstream>
@@ -7,24 +8,14 @@
 
 #include <glad/gl.h>
 
-static std::string ReadTextFile(const std::filesystem::path& path)
-{
-	std::ifstream file(path);
-
-	if (!file.is_open())
-	{
-		std::cerr << "Failed to open file: " << path.string() << std::endl;
-		return {};
-	}
-
-	std::ostringstream contentStream;
-	contentStream << file.rdbuf();
-	return contentStream.str();
-}
-
 uint32_t CreateComputeShader(const std::filesystem::path& path)
 {
-	std::string shaderSource = ReadTextFile(path);
+	auto shaderSourceOpt = FileManager::ReadTextFile(path);
+	if (!shaderSourceOpt) {
+		std::cerr << "Failed to read shader file: " << path << std::endl;
+		return -1;
+	}
+	std::string shaderSource = std::move(*shaderSourceOpt);
 
 	GLuint shaderHandle = glCreateShader(GL_COMPUTE_SHADER);
 
@@ -89,8 +80,19 @@ uint32_t ReloadComputeShader(uint32_t shaderHandle, const std::filesystem::path&
 
 uint32_t CreateGraphicsShader(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
 {
-	std::string vertexShaderSource = ReadTextFile(vertexPath);
-	std::string fragmentShaderSource = ReadTextFile(fragmentPath);
+	auto vertexSourceOpt = FileManager::ReadTextFile(vertexPath);
+	if (!vertexSourceOpt) {
+		std::cerr << "Failed to read vertex shader file: " << vertexPath << std::endl;
+		return -1;
+	}
+	std::string vertexShaderSource = std::move(*vertexSourceOpt);
+
+	auto fragmentSourceOpt = FileManager::ReadTextFile(fragmentPath);
+	if (!fragmentSourceOpt) {
+		std::cerr << "Failed to read fragment shader file: " << fragmentPath << std::endl;
+		return -1;
+	}
+	std::string fragmentShaderSource = std::move(*fragmentSourceOpt);
 
 	// Vertex shader
 
